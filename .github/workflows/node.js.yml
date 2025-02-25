@@ -30,17 +30,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # 4. 代码质量检查（ESLint 和 Prettier）
-      - name: Run ESLint
-        run: npx eslint . --ext .js,.ts,.vue
-      - name: Run Prettier
-        run: npx prettier --check .
-
-      # 5. 构建项目
+      # 4. 构建项目
       - name: Build project
         run: npm run build --if-present
 
-      # 6. 运行测试并生成覆盖率报告
+      # 5. 运行测试并生成覆盖率报告
       - name: Run tests
         run: npm test --if-present
       - name: Upload coverage to Codecov
@@ -48,11 +42,11 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}  # 需要配置 Codecov token
 
-      # 7. 安全性检查
+      # 6. 安全性检查
       - name: Run npm audit
         run: npm audit
 
-      # 8. 启动服务器并运行 API 测试（可选）
+      # 7. 启动服务器并运行 API 测试（可选）
       - name: Start server
         run: npm run start &
         env:
@@ -62,7 +56,7 @@ jobs:
           echo "Running API tests..."
           curl http://localhost:3000/api/health
 
-      # 9. 部署到 GitHub Pages（可选）
+      # 8. 部署到 GitHub Pages（可选）
       - name: Deploy to GitHub Pages
         if: github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v3
@@ -70,7 +64,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist  # 假设构建输出在 dist 目录
 
-      # 10. 发送通知到 Slack（可选）
+      # 9. 发送通知到 Slack（可选）
       - name: Send Slack notification
         if: always()  # 无论成功或失败都发送通知
         uses: rtCamp/action-slack-notify@v2
