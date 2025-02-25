@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import userRoutes from './routes/userRoutes';
+import httpRoutes from './routes/httpRoutes';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -15,6 +16,7 @@ app.use(express.json()); // 解析 JSON 请求体
 
 // 挂载路由
 app.use('/api/users', userRoutes);
+app.use('/api/http', httpRoutes);
 
 // 全局错误处理
 app.use(errorHandler);

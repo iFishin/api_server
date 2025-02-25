@@ -1,4 +1,4 @@
-import { openDb } from '../db';
+import UserService from '../services/UserService';
 
 export interface User {
     id?: number;
@@ -6,39 +6,20 @@ export interface User {
     email: string;
 }
 
-export default {
-    async getAll(): Promise<User[]> {
-        const db = await openDb();
-        return db.all('SELECT * FROM users');
-    },
+class UserModel {
+    private userService: UserService;
 
-    async getById(id: number): Promise<User | undefined> {
-        const db = await openDb();
-        return db.get('SELECT * FROM users WHERE id = ?', id);
-    },
+    constructor(userService: UserService) {
+        this.userService = userService;
+    }
 
-    async create(user: User): Promise<User> {
-        const db = await openDb();
-        const { name, email } = user;
-        const { lastID } = await db.run(
-            'INSERT INTO users (name, email) VALUES (?, ?)',
-            name, email
-        );
-        return this.getById(lastID!) as Promise<User>;
-    },
+    getAll = () => this.userService.getAllUsers();
+    getById = (id: number) => this.userService.getUserById(id);
+    create = (user: User) => this.userService.createUser(user);
+    update = (id: number, user: User) => this.userService.updateUser(id, user);
+    delete = (id: number) => this.userService.deleteUser(id);
+}
 
-    async update(id: number, user: User): Promise<User | undefined> {
-        const db = await openDb();
-        const { name, email } = user;
-        await db.run(
-            'UPDATE users SET name = ?, email = ? WHERE id = ?',
-            name, email, id
-        );
-        return this.getById(id);
-    },
-
-    async delete(id: number): Promise<void> {
-        const db = await openDb();
-        await db.run('DELETE FROM users WHERE id = ?', id);
-    },
-};
+// Dependency injection for better testability
+const userService = new UserService();
+export default new UserModel(userService);

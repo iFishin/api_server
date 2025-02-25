@@ -10,5 +10,5 @@
       "strict": true,
       "outDir": "../dist/server"
     },
-    "include": ["**/*.ts"]
+    "include": []
   }
