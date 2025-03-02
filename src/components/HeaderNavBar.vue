@@ -16,7 +16,7 @@
 
 <script lang="ts">
 import { defineComponent, computed, onMounted, watch, ref, getCurrentInstance } from 'vue';
-import IconApi from '@/components/icons/IconApi.vue';
+import IconApi from '../components/icons/IconApi.vue';
 import { useStore } from 'vuex';
 import { useRoute } from 'vue-router';
 
