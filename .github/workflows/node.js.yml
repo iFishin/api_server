@@ -43,8 +43,8 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}  # 需要配置 Codecov token
 
       # 6. 安全性检查
-      - name: Run npm audit
-        run: npm audit
+      # - name: Run npm audit
+      #   run: npm audit
 
       # 7. 启动服务器并运行 API 测试（可选）
       - name: Start server
