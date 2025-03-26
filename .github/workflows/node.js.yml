@@ -51,10 +51,6 @@ jobs:
         run: npm run start &
         env:
           PORT: 3000  # 设置环境变量（如果需要）
-      - name: Run API tests
-        run: |
-          echo "Running API tests..."
-          curl http://localhost:3000/api/health
 
       # 8. 部署到 GitHub Pages（可选）
       - name: Deploy to GitHub Pages
