@@ -1,6 +1,45 @@
 import { Request, Response } from "express";
 const fs = require("fs");
-import { generateRepeatedString } from "../utils/stringUtils";
+const path = require("path");
+import { generateRepeatedString } from "@utils/stringUtils";
+import upload from "@middlewares/multer";
+
+const get_files = async (req: Request, res: Response) => {
+  const dirPath = path.join(__dirname, "../temps");
+  fs.readdir(dirPath, (err: NodeJS.ErrnoException | null, files: string[]) => {
+    if (err) {
+      return res.status(500).json({ error: "Failed to read directory" });
+    }
+    res.json({ files });
+  });
+};
+
+const delete_file = async (req: Request, res: Response) => {
+  const { filename } = req.params;
+  const filePath = `./temps/${filename}`;
+  fs.unlink(filePath, (err: Error) => {
+    if (err) {
+      return res.status(500).json({ error: "Failed to delete file" });
+    }
+    res.json({ message: "File deleted successfully" });
+  });
+};
+
+const upload_file = async (req: Request, res: Response): Promise<void> => {
+  if (!req.file) {
+    res.status(400).json({ error: "No file uploaded" });
+    return;
+  }
+  const filePath = `./temps/${req.file.filename}`;
+
+  fs.writeFile(filePath, req.file.buffer, (err: Error) => {
+    if (err) {
+      res.status(500).json({ error: "Failed to save file" });
+      return;
+    }
+    res.json({ message: "File uploaded successfully", filePath });
+  });
+}
 
 const get_default = async (req: Request, res: Response) => {
   res.status(200).json({ message: "Basic GET request successful" });
@@ -71,38 +110,18 @@ const post_create = async (req: Request, res: Response) => {
 };
 
 const post_file = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const files = (req as any).files || [];
-    if (!Array.isArray(files)) {
-      res.status(400).json({ message: "No files uploaded or invalid format" });
-    }
-
-    // Define the directory and ensure it exists
-    const dirPath = "../temps";
-    if (!fs.existsSync(dirPath)) {
-      fs.mkdirSync(dirPath, { recursive: true });
-    }
-
-    // Save each file to the directory and calculate total size
-    const savedFiles: { filename: string; path: string; size: number }[] = [];
-    let totalSize = 0;
-
-    for (const file of files) {
-      const filePath = `${dirPath}/${file.originalname}`;
-      fs.writeFileSync(filePath, file.buffer);
-      const fileSize = file.buffer.length;
-      totalSize += fileSize;
-      savedFiles.push({ filename: file.originalname, path: filePath, size: fileSize });
-    }
-
-    res.status(201).json({
-      message: "File upload successful",
-      totalSize,
-      files: savedFiles,
-    });
-  } catch (error) {
-    res.status(500).json({ message: "File upload failed", error: (error as Error).message });
+  if (!req.file) {
+    res.status(400).json({ error: "No file uploaded" });
+    return;
   }
+  res.json({
+    success: true,
+    file: {
+      originalname: req.file.originalname,
+      path: req.file.path,
+      size: req.file.size,
+    },
+  });
 };
 
 const post_dict = async (req: Request, res: Response) => {
@@ -165,6 +184,9 @@ const options_request = async (req: Request, res: Response) => {
 };
 
 export {
+  get_files,
+  delete_file,
+  upload_file,
   get_default,
   get_query,
   get_params,

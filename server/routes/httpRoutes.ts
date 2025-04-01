@@ -1,7 +1,9 @@
 import express from "express";
 import { Request, Response } from "express";
-import multer from "multer";
 import {
+  get_files,
+  delete_file,
+  upload_file,
   get_default,
   get_query,
   get_params,
@@ -21,10 +23,22 @@ import {
   delete_remove,
   head_request,
   options_request,
-} from "../controllers/httpController";
+} from "@controllers/httpController";
+
+import upload from "@middlewares/multer";
 
 const router = express.Router();
-const upload = multer({ dest: "uploads/" });
+
+// File system management
+// 获取文件列表
+router.get("/files", get_files);
+
+// 删除文件
+router.delete("/files/:filename", delete_file);
+
+// 上传文件（复用之前的 Multer 配置）
+router.post("/files", upload, upload_file);
+
 
 // GET request examples
 router.get("/", get_default);
@@ -42,8 +56,7 @@ router.get("/get_8m", get_8m);
 // POST request examples
 router.post("/create", post_create);
 router.post("/dict", post_dict);
-router.post("/upload", upload.array("files"), post_file);
-
+router.post("/post_file", upload, post_file);
 
 // PUT request example
 router.put("/update/:id", put_update);

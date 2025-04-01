@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>文件管理系统</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    button { margin: 5px; }
+  </style>
+</head>
+<body>
+  <h1>文件管理</h1>
+  <input type="file" id="fileInput" />
+  <button id="uploadButton">上传文件</button>
+  <table id="fileTable">
+    <thead>
+      <tr>
+        <th>文件名</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <!-- 引入外部 JS -->
+  <script src="/script.js"></script>
+</body>
+</html>
