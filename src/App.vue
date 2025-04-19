@@ -21,10 +21,7 @@
 import HeaderNavBar from './components/HeaderNavBar.vue';
 import SideNavBar from './components/SideNavBar.vue';
 import ApiDocViewer from './components/ApiDocViewer.vue';
-
-
 </script>
-
 
 <style>
 #app {
@@ -36,6 +33,24 @@ import ApiDocViewer from './components/ApiDocViewer.vue';
 
 header {
   background-color: #f8f9fa;
+  padding: 0.5rem 1rem;
+}
+
+.nav-links {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-links a {
+  text-decoration: none;
+  color: #007bff;
+  font-weight: bold;
+}
+
+.nav-links a:hover {
+  text-decoration: underline;
 }
 
 .main-container {
@@ -58,6 +73,6 @@ main {
   background-color: #ffffff;
   overflow-y: auto;
   height: 100%;
-  border-radius: 8px; /* Add rounded corners */
+  border-radius: 8px;
 }
 </style>

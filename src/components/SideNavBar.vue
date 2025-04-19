@@ -11,6 +11,12 @@
                         <span>{{ category.name }}</span>
                     </router-link>
                 </li>
+                <li class="nav-item">
+                    <RouterLink to="/webdav-ui" class="nav-link">
+                        <i class="fas fa-cloud"></i> <!-- 或其他合适的图标 -->
+                        <span>WebDAV 文件服务器</span>
+                    </RouterLink>
+                </li>
             </ul>
         </nav>
     </div>
