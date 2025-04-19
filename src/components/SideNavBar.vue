@@ -11,12 +11,6 @@
                         <span>{{ category.name }}</span>
                     </router-link>
                 </li>
-                <li class="nav-item">
-                    <RouterLink to="/webdav-ui" class="nav-link">
-                        <i class="fas fa-cloud"></i> <!-- 或其他合适的图标 -->
-                        <span>WebDAV 文件服务器</span>
-                    </RouterLink>
-                </li>
             </ul>
         </nav>
     </div>
@@ -51,27 +45,27 @@ export default defineComponent({
 
 <style scoped>
 .sidebar {
-    color: white;
-    width: 240px;
-    padding: 1.5rem;
     height: 100%;
-    background-color: #2c3e50;
-    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    background-color: #ffffff;
+    border-right: 1px solid #e2e8f0;
 }
 
 .sidebar-header {
-    padding: 1rem 0;
-    text-align: left;
-    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
-    margin-bottom: 1.5rem;
-    text-align: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
 }
 
 .sidebar-header h3 {
     margin: 0;
-    font-size: 1.4em;
+    font-size: 1.1rem;
     font-weight: 600;
-    letter-spacing: 0.5px;
+    color: #2d3748;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.sidebar-nav {
+    padding: 1.5rem 0;
 }
 
 .sidebar-nav ul {
@@ -81,33 +75,59 @@ export default defineComponent({
 }
 
 .sidebar-nav li {
-    margin: 0.5rem 0;
+    margin: 0.25rem 0;
 }
 
 .sidebar-nav a {
-    color: #ecf0f1;
-    text-decoration: none;
     display: flex;
     align-items: center;
-    padding: 0.8rem 1rem;
-    border-radius: 6px;
+    padding: 0.75rem 1.5rem;
+    color: #4a5568;
+    text-decoration: none;
+    font-size: 0.95rem;
     transition: all 0.2s ease;
-    font-size: 0.95em;
+    position: relative;
 }
 
 .sidebar-nav a:hover {
-    background-color: rgba(255, 255, 255, 0.15);
-    transform: translateX(5px);
-}
-
-.sidebar-nav i {
-    margin-right: 12px;
-    font-size: 0.75em;
-    opacity: 0.8;
+    background-color: #f7fafc;
+    color: #3498db;
 }
 
 .sidebar-nav a.router-link-active {
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: #ebf8ff;
+    color: #3498db;
     font-weight: 500;
+}
+
+.sidebar-nav i {
+    margin-right: 1rem;
+    font-size: 0.875rem;
+    width: 1.25rem;
+    text-align: center;
+    color: #718096;
+}
+
+.sidebar-nav a:hover i,
+.sidebar-nav a.router-link-active i {
+    color: #3498db;
+}
+
+/* 添加一个微妙的悬停效果 */
+.sidebar-nav a::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background-color: #3498db;
+    transform: scaleY(0);
+    transition: transform 0.2s ease;
+}
+
+.sidebar-nav a:hover::before,
+.sidebar-nav a.router-link-active::before {
+    transform: scaleY(1);
 }
 </style>

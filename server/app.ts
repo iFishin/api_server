@@ -14,13 +14,29 @@ const app = express();
 const __dirname = path.resolve(); // 获取项目根目录
 
 // 中间件配置
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:5173',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(helmet({
   contentSecurityPolicy: false, // 在开发阶段可能需要禁用CSP
 }));
 app.use(helmet());
 app.use(morgan('dev'));
 app.use(express.json());
+
+// 调试中间件
+app.use((req, res, next) => {
+  console.log('Request URL:', req.url);
+  console.log('Request Method:', req.method);
+  next();
+});
+
+// API 路由 - 移到最前面
+app.use('/api/users', userRoutes);
+app.use('/api/http', httpRoutes);
+app.use('/api/files', fileRoutes);
 
 // 静态文件路径
 const publicPath = path.join(__dirname, "server/public");
@@ -51,11 +67,6 @@ app.get("/script.js", (req, res) => {
 // 调试日志
 console.log("Public Path:", publicPath);
 console.log("Temps Path:", tempsPath);
-
-// API 路由
-app.use('/api/users', userRoutes);
-app.use('/api/http', httpRoutes);
-app.use('/api/files', fileRoutes);
 
 setupWebDAV(app); // 设置 WebDAV
 

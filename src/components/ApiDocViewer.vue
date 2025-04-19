@@ -1,5 +1,12 @@
+<!--
+ * @Date: 2025-04-19
+ * @LastEditors: Fishing
+ * @LastEditTime: 2025-04-19
+ * @FilePath: \Api_Server\src\components\ApiDocViewer.vue
+ * @Description: https://github.com/iFishin
+-->
 <template>
-    <div class="api-doc-viewer">
+    <div v-if="hasApiData" class="api-doc-viewer">
         <h1 class="main-title">API Documentation</h1>
         <div v-for="api in apis" :key="api.id" class="api-section">
             <div class="api-header">
@@ -46,7 +53,7 @@
                                 :placeholder="param.description"
                             >
                         </div>
-                        <button type="submit">Send Request</button>
+                        <button type="submit">发送请求</button>
                     </form>
                     <div v-if="testResult" class="test-result">
                         <pre>{{ testResult }}</pre>
@@ -68,18 +75,25 @@ interface Api {
     name: string,
     method: string,
     endpoint: string,
-    description: string
+    description: string,
+    parameters: Array<{
+        name: string,
+        type: string,
+        description: string
+    }>,
+    response: string
 }
 
 const currentPageTitle = computed(() => store.state.currentPageTitle)
 const apis = computed(() => store.getters.getApisByType(currentPageTitle.value))
+const hasApiData = computed(() => apis.value && apis.value.length > 0)
 
 const testParams = reactive<Record<string, string | number>>({})
 const testResult = ref<string | null>(null)
 
 const testApi = async (api: Api) => {
     try {
-        testResult.value = 'Sending request...'
+        testResult.value = '发送请求中...'
         
         let finalEndpoint = '/api' + api.endpoint
         if (api.endpoint.includes('{id}') && testParams.id) {
@@ -88,7 +102,7 @@ const testApi = async (api: Api) => {
         const response = await fetch(finalEndpoint, {
             method: api.method,
             headers: {
-            'Content-Type': 'application/json',
+                'Content-Type': 'application/json',
             },
             body: api.method !== 'GET' ? JSON.stringify(testParams) : undefined
         })
@@ -104,6 +118,11 @@ const testApi = async (api: Api) => {
         }
     }
 }
+
+// 使用 defineOptions 定义组件选项
+defineOptions({
+  name: 'ApiDocViewer'
+})
 </script>
 
 <style scoped>
@@ -279,4 +298,4 @@ button:hover {
     color: #f8f8f2;
     margin: 0;
 }
-</style>style
+</style>

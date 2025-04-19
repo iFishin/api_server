@@ -10,6 +10,12 @@
             <li v-for="(item, index) in menuItems" :key="index">
                 <router-link :to="'/' + item.toLowerCase()">{{ item }}</router-link>
             </li>
+            <li class="nav-item">
+                <RouterLink to="/webdav-ui" class="nav-link">
+                    <i class="fas fa-cloud"></i> <!-- 或其他合适的图标 -->
+                    <span>WebDAV 文件服务器</span>
+                </RouterLink>
+            </li>
         </ul>
     </nav>
 </template>
@@ -31,7 +37,7 @@ export default defineComponent({
         const menuItems = ref<string[]>([]);
 
         onMounted(() => {
-            
+
             const apiConfig = store.state.apiConfig;
 
             if (apiConfig) {
@@ -62,25 +68,32 @@ export default defineComponent({
 
 <style scoped>
 :deep(svg) {
-    margin-right: 10px;
-    width: 32px;
-    height: 32px;
+    margin-right: 12px;
+    width: 24px;
+    height: 24px;
     vertical-align: middle;
+    color: #3498db;
 }
 
 .navbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 20px;
-    background-color: #343a40;
-    color: white;
+    height: 100%;
 }
 
 .navbar-brand a {
-    color: white;
-    font-size: 24px;
+    color: #2c3e50;
+    font-size: 1.25rem;
     text-decoration: none;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s ease;
+}
+
+.navbar-brand a:hover {
+    color: #3498db;
 }
 
 .navbar-menu {
@@ -88,21 +101,43 @@ export default defineComponent({
     list-style: none;
     margin: 0;
     padding: 0;
-    justify-content: center;
-    flex-grow: 1;
-}
-
-.navbar-menu li {
-    margin-left: 20px;
+    gap: 2rem;
 }
 
 .navbar-menu li a {
-    color: white;
+    color: #4a5568;
     text-decoration: none;
-    font-size: 18px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    padding: 0.5rem 0;
+    position: relative;
+    transition: color 0.2s ease;
+}
+
+.navbar-menu li a::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background-color: #3498db;
+    transition: width 0.2s ease;
 }
 
 .navbar-menu li a:hover {
-    color: #007BFF;
+    color: #3498db;
+}
+
+.navbar-menu li a:hover::after {
+    width: 100%;
+}
+
+.navbar-menu li a.router-link-active {
+    color: #3498db;
+}
+
+.navbar-menu li a.router-link-active::after {
+    width: 100%;
 }
 </style>

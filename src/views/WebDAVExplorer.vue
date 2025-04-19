@@ -1,91 +1,78 @@
+<!--
+ * @Date: 2025-04-19
+ * @LastEditors: Fishing
+ * @LastEditTime: 2025-04-19
+ * @FilePath: \Api_Server\src\views\WebDAVExplorer.vue
+ * @Description: https://github.com/iFishin
+-->
 <template>
     <div class="webdav-explorer">
-      <div class="webdav-info">
-        <div class="info-card">
-          <h3>WebDAV 服务信息</h3>
-          <p><strong>服务地址:</strong> http://localhost:3000/webdav</p>
-          <p><strong>用户名:</strong> admin</p>
-          <p><strong>密码:</strong> admin</p>
-          <p><strong>存储位置:</strong> ./temps 目录</p>
-        </div>
-      </div>
-  
-      <!-- 文件上传部分 -->
-      <div class="upload-section">
-        <h3>文件上传</h3>
-        <div class="upload-form">
-          <input type="file" ref="fileInput" @change="handleFileSelected" multiple />
-          <button @click="uploadFiles" :disabled="!selectedFiles.length">
+      <div class="header">
+        <h1>WebDAV 文件浏览器</h1>
+        <div class="actions">
+          <input
+            type="file"
+            ref="fileInput"
+            @change="handleFileSelected"
+            multiple
+            style="display: none"
+          />
+          <button @click="fileInput?.click()" class="btn">选择文件</button>
+          <button 
+            @click="uploadFiles" 
+            :disabled="!selectedFiles.length"
+            class="btn primary"
+          >
             上传文件
           </button>
         </div>
-        <div v-if="uploadStatus" class="upload-status" :class="{ success: uploadSuccess, error: !uploadSuccess }">
-          {{ uploadStatus }}
-        </div>
       </div>
   
-      <!-- 文件浏览部分 -->
-      <div class="file-explorer">
-        <div class="explorer-header">
-          <h3>文件管理</h3>
-          <button @click="refreshFiles" class="refresh-btn">
-            <span class="refresh-icon">🔄</span> 刷新
-          </button>
+      <div v-if="uploadStatus" :class="['upload-status', uploadSuccess ? 'success' : 'error']">
+        {{ uploadStatus }}
+      </div>
+  
+      <div v-if="error" class="error-message">
+        {{ error }}
+      </div>
+  
+      <div v-if="loading" class="loading">
+        加载中...
+      </div>
+  
+      <div v-else class="file-list">
+        <div v-for="file in files" :key="file.name" class="file-item">
+          <div class="file-info">
+            <span class="file-name">{{ file.name }}</span>
+            <span class="file-size">{{ formatSize(file.size) }}</span>
+            <span class="file-date">{{ formatDate(file.modifiedAt) }}</span>
+          </div>
+          <div class="file-actions">
+            <button @click="downloadFile(file)" class="btn">下载</button>
+            <button @click="deleteFile(file)" class="btn danger">删除</button>
+          </div>
         </div>
-        
-        <div v-if="loading" class="loading">
-          加载中...
-        </div>
-        
-        <div v-else-if="error" class="error-message">
-          加载文件失败: {{ error }}
-        </div>
-        
-        <table v-else class="files-table">
-          <thead>
-            <tr>
-              <th>类型</th>
-              <th>文件名</th>
-              <th>大小</th>
-              <th>修改日期</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="file in files" :key="file.name" class="file-row">
-              <td>{{ file.isDirectory ? '📁' : '📄' }}</td>
-              <td>{{ file.name }}</td>
-              <td>{{ formatSize(file.size) }}</td>
-              <td>{{ file.modifiedAt ? formatDate(file.modifiedAt) : '未知' }}</td>
-              <td class="actions">
-                <button v-if="!file.isDirectory" @click="downloadFile(file)" class="action-btn download">
-                  下载
-                </button>
-                <button @click="deleteFile(file)" class="action-btn delete">
-                  删除
-                </button>
-              </td>
-            </tr>
-            <tr v-if="files.length === 0">
-              <td colspan="5" class="empty-message">没有文件</td>
-            </tr>
-          </tbody>
-        </table>
       </div>
     </div>
   </template>
   
   <script setup lang="ts">
-  import { ref, onMounted } from 'vue';
-  import axios from 'axios';
-  
+  import { ref, onMounted } from 'vue'
+  import { useStore } from 'vuex'
+  import axios from 'axios'
+
+  // 配置 axios 默认值
+  axios.defaults.baseURL = 'http://localhost:3000'
+
+  const store = useStore()
+
   interface FileItem {
     name: string;
     size: number;
     modifiedAt: string;
     isDirectory: boolean;
   }
-  
+
   // 状态变量
   const files = ref<FileItem[]>([]);
   const loading = ref<boolean>(false);
@@ -94,17 +81,17 @@
   const fileInput = ref<HTMLInputElement | null>(null);
   const uploadStatus = ref<string>('');
   const uploadSuccess = ref<boolean>(false);
-  
+
   // 页面加载时获取文件列表
   onMounted(() => {
     refreshFiles();
   });
-  
+
   // 刷新文件列表
   async function refreshFiles() {
     loading.value = true;
     error.value = null;
-  
+
     try {
       const response = await axios.get('/api/files');
       files.value = response.data;
@@ -115,13 +102,13 @@
       loading.value = false;
     }
   }
-  
+
   // 处理文件选择
   function handleFileSelected(event: Event) {
     const target = event.target as HTMLInputElement;
     selectedFiles.value = Array.from(target.files || []);
   }
-  
+
   // 上传文件
   async function uploadFiles() {
     if (!selectedFiles.value.length) return;
@@ -130,7 +117,6 @@
     uploadSuccess.value = false;
     
     try {
-      // 创建一个FormData对象用于文件上传
       for (const file of selectedFiles.value) {
         const formData = new FormData();
         formData.append('file', file);
@@ -141,7 +127,7 @@
           }
         });
       }
-  
+
       uploadStatus.value = `成功上传 ${selectedFiles.value.length} 个文件`;
       uploadSuccess.value = true;
     } catch (err) {
@@ -156,11 +142,11 @@
       refreshFiles();
     }
   }
-  
+
   // 删除文件
   async function deleteFile(file: FileItem) {
     if (!confirm(`确定要删除 "${file.name}" 吗?`)) return;
-  
+
     try {
       await axios.delete(`/api/files/${encodeURIComponent(file.name)}`);
       refreshFiles();
@@ -169,12 +155,12 @@
       console.error('删除文件错误:', err);
     }
   }
-  
+
   // 下载文件
   function downloadFile(file: FileItem) {
-    window.open(`/api/files/download/${encodeURIComponent(file.name)}`, '_blank');
+    window.open(`http://localhost:3000/api/files/download/${encodeURIComponent(file.name)}`, '_blank');
   }
-  
+
   // 格式化文件大小
   function formatSize(bytes: number): string {
     if (bytes === 0) return '0 B';
@@ -184,134 +170,141 @@
     
     return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i];
   }
-  
+
   // 格式化日期
   function formatDate(dateString: string): string {
     const date = new Date(dateString);
     return date.toLocaleString();
   }
+
+  defineOptions({
+    name: 'WebDAVExplorer'
+  });
   </script>
   
   <style scoped>
   .webdav-explorer {
-    background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     padding: 20px;
   }
   
-  .webdav-info {
-    margin-bottom: 20px;
-  }
-  
-  .info-card {
-    background-color: #f8f9fa;
-    border-radius: 6px;
-    padding: 15px;
-    margin-bottom: 20px;
-  }
-  
-  .upload-section {
-    margin-bottom: 20px;
-    padding: 15px;
-    background-color: #f8f9fa;
-    border-radius: 6px;
-  }
-  
-  .upload-form {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 10px;
-  }
-  
-  .upload-status {
-    padding: 10px;
-    border-radius: 4px;
-    margin-top: 10px;
-  }
-  
-  .success {
-    background-color: #d4edda;
-    color: #155724;
-  }
-  
-  .error {
-    background-color: #f8d7da;
-    color: #721c24;
-  }
-  
-  .file-explorer {
-    background-color: #fff;
-  }
-  
-  .explorer-header {
+  .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
-  }
-  
-  .refresh-btn {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-  
-  .files-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  
-  .files-table th,
-  .files-table td {
-    padding: 12px 15px;
-    text-align: left;
-    border-bottom: 1px solid #eee;
-  }
-  
-  .files-table th {
-    background-color: #f8f9fa;
-    font-weight: bold;
-  }
-  
-  .file-row:hover {
-    background-color: #f8f9fa;
+    margin-bottom: 20px;
   }
   
   .actions {
     display: flex;
-    gap: 5px;
+    gap: 10px;
   }
   
-  .action-btn {
-    padding: 5px 10px;
+  .btn {
+    padding: 8px 16px;
     border: none;
     border-radius: 4px;
     cursor: pointer;
+    background-color: #f0f0f0;
+    transition: background-color 0.2s;
   }
   
-  .download {
-    background-color: #007bff;
+  .btn:hover {
+    background-color: #e0e0e0;
+  }
+  
+  .btn.primary {
+    background-color: #1890ff;
     color: white;
   }
   
-  .delete {
-    background-color: #dc3545;
+  .btn.primary:hover {
+    background-color: #40a9ff;
+  }
+  
+  .btn.danger {
+    background-color: #ff4d4f;
     color: white;
   }
   
-  .loading,
-  .error-message,
-  .empty-message {
-    padding: 20px;
-    text-align: center;
+  .btn.danger:hover {
+    background-color: #ff7875;
+  }
+  
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  .upload-status {
+    padding: 10px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+  }
+  
+  .upload-status.success {
+    background-color: #f6ffed;
+    border: 1px solid #b7eb8f;
+    color: #52c41a;
+  }
+  
+  .upload-status.error {
+    background-color: #fff2f0;
+    border: 1px solid #ffccc7;
+    color: #ff4d4f;
   }
   
   .error-message {
-    color: #dc3545;
+    padding: 10px;
+    margin-bottom: 20px;
+    background-color: #fff2f0;
+    border: 1px solid #ffccc7;
+    color: #ff4d4f;
+    border-radius: 4px;
   }
   
-  .empty-message {
-    color: #6c757d;
+  .loading {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+  }
+  
+  .file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+  
+  .file-info {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+  }
+  
+  .file-name {
+    font-weight: 500;
+  }
+  
+  .file-size, .file-date {
+    color: #666;
+    font-size: 0.9em;
+  }
+  
+  .file-actions {
+    display: flex;
+    gap: 10px;
   }
   </style>
+
+export default {
+  name: 'WebDAVExplorer'
+}

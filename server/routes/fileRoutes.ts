@@ -4,12 +4,16 @@ import fs from 'fs';
 import multer from 'multer';
 
 const router = express.Router();
-const tempDir = path.join(process.cwd(), 'temps');
+const tempDir = path.join(process.cwd(), 'server', 'temps');
 
 // 确保temps目录存在
 if (!fs.existsSync(tempDir)) {
   fs.mkdirSync(tempDir, { recursive: true });
 }
+
+// 调试日志
+console.log('File routes initialized');
+console.log('Temp directory:', tempDir);
 
 // 配置文件上传
 const storage = multer.diskStorage({
@@ -25,6 +29,7 @@ const upload = multer({ storage: storage });
 
 // 获取文件列表
 router.get('/', (_req: express.Request, res: express.Response) => {
+  console.log('GET /api/files/ - Request received');
   try {
     const files = fs.readdirSync(tempDir).map(filename => {
       const filePath = path.join(tempDir, filename);
@@ -37,8 +42,10 @@ router.get('/', (_req: express.Request, res: express.Response) => {
         modifiedAt: stats.mtime
       };
     });
+    console.log('Files found:', files);
     res.json(files);
   } catch (err) {
+    console.error('Error reading files:', err);
     res.status(500).json({ error: (err as Error).message });
   }
 });
