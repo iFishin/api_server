@@ -60,12 +60,12 @@ nav {
 }
 
 .main-container {
+  margin-top: 60px;
   display: flex;
   flex: 1;
-  padding-top: 60px;
-  min-height: calc(100vh - 60px);
-  position: relative;
   width: 100%;
+  overflow: auto;
+  padding: 1.5rem;
   box-sizing: border-box;
 }
 
@@ -78,7 +78,7 @@ aside {
   bottom: 0;
   overflow-y: auto;
   border-right: 1px solid #e2e8f0;
-  transition: transform 0.3s ease;
+  transition: transform 0.3s ease, width 0.3s ease;
   z-index: 900;
 }
 
@@ -88,7 +88,7 @@ main {
   padding: 1.5rem;
   background-color: #f8fafc;
   min-height: calc(100vh - 60px);
-  transition: margin-left 0.3s ease;
+  transition: margin-left 0.3s ease, padding 0.3s ease;
   width: calc(100% - 240px);
   position: relative;
   z-index: 1;
@@ -97,6 +97,17 @@ main {
 }
 
 /* 响应式设计 */
+@media (max-width: 1024px) {
+  aside {
+    width: 200px;
+  }
+
+  main {
+    margin-left: 200px;
+    width: calc(100% - 200px);
+  }
+}
+
 @media (max-width: 768px) {
   header {
     padding: 0 1rem;
@@ -120,6 +131,25 @@ main {
   main.with-sidebar {
     margin-left: 240px;
     width: calc(100% - 240px);
+  }
+}
+
+@media (max-width: 480px) {
+  header {
+    height: 50px;
+  }
+
+  .main-container {
+    padding: 1rem;
+  }
+
+  aside {
+    width: 180px;
+  }
+
+  main {
+    margin-left: 0;
+    padding: 0.5rem;
   }
 }
 

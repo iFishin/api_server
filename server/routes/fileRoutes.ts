@@ -94,4 +94,28 @@ router.delete('/:filename', (req: express.Request, res: express.Response): void 
   }
 });
 
+router.get('/debug', (req, res) => {
+  try {
+    const files = fs.readdirSync(tempDir);
+    res.json({
+      message: "WebDAV debug info",
+      directory: tempDir,
+      exists: fs.existsSync(tempDir),
+      files: files,
+      details: files.map(file => {
+        const filePath = path.join(tempDir, file);
+        const stats = fs.statSync(filePath);
+        return {
+          name: file,
+          size: stats.size,
+          isDirectory: stats.isDirectory(),
+          modified: stats.mtime
+        };
+      })
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 export default router;

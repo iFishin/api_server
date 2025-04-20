@@ -128,7 +128,7 @@ const post_dict = async (req: Request, res: Response) => {
   const body = req.body;
 
   // Define the directory and ensure it exists
-  const dirPath = "./dicts";
+  const dirPath = "./server/temps";
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath);
   }

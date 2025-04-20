@@ -304,7 +304,3 @@
     gap: 10px;
   }
   </style>
-
-export default {
-  name: 'WebDAVExplorer'
-}

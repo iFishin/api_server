@@ -50,4 +50,5 @@ export function setupWebDAV(app: Express) {
     app.use(webdav.extensions.express('/webdav', server));
     
     console.log(`WebDAV server running at /webdav (pointing to ${tempDir})`);
+    
 }
