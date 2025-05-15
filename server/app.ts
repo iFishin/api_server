@@ -9,6 +9,7 @@ import httpRoutes from './routes/httpRoutes';
 import { errorHandler } from './middlewares/errorHandler';
 import fileRoutes from './routes/fileRoutes';
 import { setupWebDAV } from './webdav';
+import { getApiDocs } from '@services/docService';
 
 const app = express();
 const __dirname = path.resolve(); // 获取项目根目录
@@ -37,6 +38,14 @@ app.use((req, res, next) => {
 app.use('/api/users', userRoutes);
 app.use('/api/http', httpRoutes);
 app.use('/api/files', fileRoutes);
+
+app.get('/api/docs', (req, res) => {
+  res.json({
+    success: true,
+    data: getApiDocs(),
+    message: 'API documentation retrieved successfully'
+  });
+});
 
 // 静态文件路径
 const publicPath = path.join(__dirname, "server/public");

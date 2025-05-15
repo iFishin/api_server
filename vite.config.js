@@ -22,8 +22,7 @@ exports.default = (0, vite_1.defineConfig)({
         proxy: {
             '/api': {
                 target: 'http://localhost:3000',
-                changeOrigin: true,
-                rewrite: function (path) { return path.replace(/^\/api/, ''); }
+                changeOrigin: true
             }
         }
     }

@@ -17,7 +17,8 @@
     "forceConsistentCasingInFileNames": true,
     "typeRoots": [
       "node_modules/@types",
-      "node_modules/vuex/types"
+      "node_modules/vuex/types",
+      "src/types"
     ]
   }
 }

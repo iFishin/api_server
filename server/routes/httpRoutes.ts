@@ -1,5 +1,6 @@
 import express from "express";
 import { Request, Response } from "express";
+import { registerApiDoc } from "@services/docService";
 import {
   get_files,
   delete_file,
@@ -42,6 +43,35 @@ router.post("/files", upload, upload_file);
 
 // GET request examples
 router.get("/", get_default);
+registerApiDoc({
+  operationId: "getDefault",
+  tags: ["Root"],
+  summary: "Get default response",
+  description: "Returns the default API response.",
+  method: "GET",
+  path: "/",
+  parameters: [],
+  responses: {
+    "200": {
+      description: "Successful response",
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            properties: {
+              message: {
+                type: "string",
+                example: "Welcome to the API"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+});
+
+
 router.get("/query", get_query);
 router.get("/params/:id", get_params);
 router.get("/get_1k", get_1k);

@@ -1,0 +1,26 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+SUMMARY:Learn from Typescript Roadmap - roadmap.sh
+DESCRIPTION:Learn from the Typescript roadmap on roadmap.sh
+
+Visit the roadmap at https://roadmap.sh/typescript
+LOCATION:https://roadmap.sh/typescript
+DTSTART:20250510T143046Z
+DTEND:20250510T153046Z
+RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR
+
+BEGIN:VALARM
+TRIGGER:-PT30M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: Learn from Typescript Roadmap - roadmap.sh starts in 30 minutes
+END:VALARM
+
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: Learn from Typescript Roadmap - roadmap.sh starts in 15 minutes
+END:VALARM
+
+END:VEVENT
+END:VCALENDAR
