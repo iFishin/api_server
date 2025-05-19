@@ -45,17 +45,17 @@
                                 <h3>Parameters</h3>
                                 <div class="parameters-grid">
                                     <!-- 路径参数 -->
-                                    <div v-if="api.parameters.some(p => p.in === 'path')" class="param-group">
+                                    <div v-if="api.parameters.some((p: any) => p.in === 'path')" class="param-group">
                                         <h4>Path Parameters</h4>
-                                        <div v-for="param in api.parameters.filter(p => p.in === 'path')" :key="param.name" class="param-item">
+                                        <div v-for="param in api.parameters.filter((p: any) => p.in === 'path')" :key="param.name" class="param-item">
                                             <ParamDetail :param="param" />
                                         </div>
                                     </div>
 
                                     <!-- 查询参数 -->
-                                    <div v-if="api.parameters.some(p => p.in === 'query')" class="param-group">
+                                    <div v-if="api.parameters.some((p: any) => p.in === 'query')" class="param-group">
                                         <h4>Query Parameters</h4>
-                                        <div v-for="param in api.parameters.filter(p => p.in === 'query')" :key="param.name" class="param-item">
+                                        <div v-for="param in api.parameters?.filter((p: any) => p.in === 'query')" :key="param.name" class="param-item">
                                             <ParamDetail :param="param" />
                                         </div>
                                     </div>
@@ -107,6 +107,7 @@ import 'highlight.js/styles/github-dark.css'
 import ParamDetail from './ParamDetail.vue'
 import SchemaViewer from './SchemaViewer.vue'
 import TestPanel from './TestPanel.vue'
+import type any from 'axios'
 
 // 组件配置
 const props = defineProps<{
@@ -260,9 +261,9 @@ onMounted(fetchAPIDocs)
     background: #f9fafb;
     border: 1.5px solid #e3e8f0;
     border-radius: 12px;
-    padding: 2rem 1.5rem;
+    padding: 0.5rem 0.5rem;
     box-shadow: 0 2px 12px rgba(30,34,90,0.06);
-    min-width: 320px;
+    min-width: 50%;
 }
 .docs-section {
     margin-bottom: 1.6rem;

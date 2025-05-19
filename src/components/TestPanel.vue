@@ -1,33 +1,33 @@
 <template>
   <div class="test-panel">
     <div class="panel-header">
-      <h3>API 测试台</h3>
+      <h3>API Tester</h3>
       <div class="request-method" :class="api.method.toLowerCase()">
         {{ api.method.toUpperCase() }}
       </div>
     </div>
 
-    <!-- 请求构建区 -->
+    <!-- Request Builder -->
     <div class="request-builder">
-      <!-- URL显示 -->
+      <!-- URL Display -->
       <div class="url-display">
-        <span class="url-label">请求URL:</span>
+        <span class="url-label">URL:</span>
         <code class="url-value">{{ fullRequestUrl }}</code>
         <button 
-          @click="copyToClipboard(fullRequestUrl)" 
+          @click="copy(fullRequestUrl)" 
           class="copy-btn"
-          title="复制URL"
+          title="Copy URL"
         >
           <svg-icon name="copy" />
         </button>
       </div>
 
-      <!-- 参数输入区 -->
+      <!-- Params Input -->
       <div class="params-section">
         <div v-if="hasPathParams" class="param-group">
           <h4 class="param-group-title">
             <svg-icon name="link" class="icon" />
-            路径参数
+            Path Params
           </h4>
           <div v-for="param in pathParams" :key="param.name" class="param-item">
             <ParamInput 
@@ -41,7 +41,7 @@
         <div v-if="hasQueryParams" class="param-group">
           <h4 class="param-group-title">
             <svg-icon name="search" class="icon" />
-            查询参数
+            Query Params
           </h4>
           <div v-for="param in queryParams" :key="param.name" class="param-item">
             <ParamInput 
@@ -55,7 +55,7 @@
         <div v-if="hasBodyParams" class="param-group">
           <h4 class="param-group-title">
             <svg-icon name="json" class="icon" />
-            请求体
+            Body
             <span class="body-format">(application/json)</span>
           </h4>
           <div class="json-editor-container">
@@ -73,7 +73,7 @@
       </div>
     </div>
 
-    <!-- 请求控制区 -->
+    <!-- Request Controls -->
     <div class="request-controls">
       <button 
         @click="sendRequest" 
@@ -82,10 +82,10 @@
         :class="{ loading }"
       >
         <span v-if="!loading">
-          <svg-icon name="send" /> 发送请求
+          <svg-icon name="send" /> Send
         </span>
         <span v-else>
-          <LoadingSpinner /> 请求中...
+          <LoadingSpinner /> Sending...
         </span>
       </button>
       
@@ -94,24 +94,24 @@
           @click="showHistory = !showHistory"
           class="history-btn"
         >
-          <svg-icon name="history" /> 历史记录
+          <svg-icon name="history" /> History
         </button>
         <button 
           @click="clearHistory"
           class="clear-btn"
           v-if="requestHistory.length > 0"
         >
-          清空
+          Clear
         </button>
       </div>
     </div>
 
-    <!-- 响应展示区 -->
+    <!-- Response Section -->
     <div class="response-section" v-if="response || error">
       <div class="response-header">
         <h4>
           <svg-icon name="response" class="icon" />
-          响应结果
+          Response
           <span 
             v-if="responseStatus" 
             class="status-badge"
@@ -121,7 +121,7 @@
           </span>
         </h4>
         <div class="response-time" v-if="responseTime">
-          耗时: {{ responseTime }}ms
+          Time: {{ responseTime }}ms
         </div>
       </div>
 
@@ -137,7 +137,7 @@
       </div>
 
       <div class="response-content">
-        <!-- 格式化JSON响应 -->
+        <!-- Pretty JSON -->
         <template v-if="activeResponseTab === 'Pretty' && isJsonResponse">
           <JsonViewer 
             :value="parsedResponse" 
@@ -146,12 +146,12 @@
           />
         </template>
 
-        <!-- 原始响应 -->
+        <!-- Raw Response -->
         <template v-else-if="activeResponseTab === 'Raw'">
           <pre class="raw-response">{{ response }}</pre>
         </template>
 
-        <!-- 响应头 -->
+        <!-- Headers -->
         <template v-else-if="activeResponseTab === 'Headers' && responseHeaders">
           <table class="headers-table">
             <tr v-for="(value, key) in responseHeaders" :key="key">
@@ -161,7 +161,7 @@
           </table>
         </template>
 
-        <!-- 错误信息 -->
+        <!-- Error -->
         <div v-if="error" class="error-message">
           <svg-icon name="warning" />
           <div class="error-details">
@@ -173,11 +173,11 @@
       </div>
     </div>
 
-    <!-- 请求历史记录 -->
+    <!-- Request History -->
     <Transition name="slide-fade">
       <div class="history-panel" v-if="showHistory && requestHistory.length > 0">
         <div class="history-header">
-          <h4>历史请求</h4>
+          <h4>History</h4>
           <button @click="showHistory = false" class="close-btn">
             <svg-icon name="close" />
           </button>
@@ -321,7 +321,7 @@ const responseTabs = computed(() => {
 })
 
 // 方法
-const { copyToClipboard } = useClipboard()
+const { copy } = useClipboard()
 
 const updateUrlPreview = () => {
   // 触发响应式更新

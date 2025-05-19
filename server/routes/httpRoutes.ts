@@ -49,7 +49,7 @@ registerApiDoc({
   summary: "Get default response",
   description: "Returns the default API response.",
   method: "GET",
-  path: "/",
+  path: "/api/http",
   parameters: [],
   responses: {
     "200": {
@@ -73,6 +73,57 @@ registerApiDoc({
 
 
 router.get("/query", get_query);
+registerApiDoc({
+  operationId: "getQuery",
+  tags: ["Query"],
+  summary: "Get query parameters",
+  description: "Returns the query parameters sent in the request.",
+  method: "GET",
+  path: "/http/query",
+  parameters: [
+    {
+      name: "name",
+      in: "query",
+      description: "Name of the user",
+      required: true,
+      schema: {
+        type: "string"
+      }
+    },
+    {
+      name: "age",
+      in: "query",
+      description: "Age of the user",
+      required: false,
+      schema: {
+        type: "integer"
+      }
+    }
+  ],
+  responses: {
+    "200": {
+      description: "Successful response",
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            properties: {
+              name: {
+                type: "string",
+                example: "John Doe"
+              },
+              age: {
+                type: "integer",
+                example: 30
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+})
+
 router.get("/params/:id", get_params);
 router.get("/get_1k", get_1k);
 router.get("/get_2k", get_2k);

@@ -3,6 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
+    "frontend": "vite",
+    "backend": "ts-node -r tsconfig-paths/register -P server/tsconfig.json server/server.ts",
     "dev": "concurrently \"vite\" \"ts-node -r tsconfig-paths/register -P server/tsconfig.json server/server.ts\"",
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
@@ -21,6 +23,7 @@
     "express": "^4.21.2",
     "helmet": "^8.0.0",
     "monaco-editor": "^0.52.2",
+    "monaco-editor-vue3": "^0.1.10",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
     "sqlite": "^5.1.1",
