@@ -29,7 +29,6 @@ const upload = multer({ storage: storage });
 
 // 获取文件列表
 router.get('/', (_req: express.Request, res: express.Response) => {
-  console.log('GET /api/files/ - Request received');
   try {
     const files = fs.readdirSync(tempDir).map(filename => {
       const filePath = path.join(tempDir, filename);
@@ -77,20 +76,23 @@ router.get('/download/:filename', (req: express.Request, res: express.Response):
 // 删除文件
 router.delete('/:filename', (req: express.Request, res: express.Response): void => {
   const filePath = path.join(tempDir, req.params.filename);
-  
+
   if (!fs.existsSync(filePath)) {
     res.status(404).json({ error: 'File not found' });
+    return;
   }
-  
+
   try {
-    if (fs.statSync(filePath).isDirectory()) {
+    const stats = fs.statSync(filePath);
+    if (stats.isDirectory()) {
       fs.rmdirSync(filePath, { recursive: true });
     } else {
       fs.unlinkSync(filePath);
     }
     res.json({ message: `${req.params.filename} deleted successfully` });
   } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
+    console.error('Error deleting file:', err);
+    res.status(500).json({ error: (err as Error).message, details: err });
   }
 });
 
