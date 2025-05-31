@@ -531,11 +531,19 @@ onMounted(() => {
   font-size: 14px;
   text-transform: uppercase;
   
-  &.get { background: #61affe; }
-  &.post { background: #49cc90; }
-  &.put { background: #fca130; }
-  &.delete { background: #f93e3e; }
-  &.patch { background: #50e3c2; }
+  &.get { background: #38f9d7; }
+  &.post { background: #5b86e5; }
+  &.put { background: #ffa751; color: #333; }
+  &.delete { background: #f09819; }
+  &.options { background: #0072ff; }
+  &.head { background: #ff4b2b; }
+  &.patch { background: #ffd200; color: #333; }
+  &.trace { background: #0072ff; }
+  &.connect { background: #ffd200; color: #333; }
+  &.custom {
+    background: #2575fc;
+    color: #fff;
+  }
 }
 
 .request-builder {

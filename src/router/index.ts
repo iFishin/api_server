@@ -3,6 +3,7 @@ import HomeView from '../views/HomeView.vue'
 import UsersApiView from '../views/UsersApiView.vue'
 import HttpApiView from '../views/HttpApiView.vue'
 import TcpUdpApiView from '../views/TcpUdpApiView.vue'
+import MqttApiView from '../views/MqttApiView.vue'
 import WebDAVView from '../views/WebDAVView.vue'
 
 const router = createRouter({
@@ -35,6 +36,14 @@ const router = createRouter({
       component: TcpUdpApiView,
       meta: {
         title: 'TCP/UDP API'
+      }
+    },
+    {
+      path: '/mqtt',
+      name: 'mqtt',
+      component: MqttApiView,
+      meta: {
+        title: 'MQTT API'
       }
     },
     {

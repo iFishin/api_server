@@ -1,5 +1,5 @@
 <template>  
-    <ApiDocViewer apiGroup="default" />
+    <ApiDocViewer apiGroup="" />
 </template>
 
 <script setup lang="ts">

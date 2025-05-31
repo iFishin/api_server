@@ -1,5 +1,4 @@
 import { createStore } from 'vuex';
-import apiConfig from '../api.json';
 
 interface Parameter {
     name: string
@@ -28,22 +27,17 @@ interface ApiConfig {
 
 interface State {
     currentPageTitle: string;
-    apiConfig: ApiConfig;
 }
 
-export const apiData = apiConfig['HTTP'];
+// export const apiData = apiConfig['HTTP'];
 
 export default createStore<State>({
     state: {
         currentPageTitle: 'Home',
-        apiConfig: apiConfig
     },
     mutations: {
         setCurrentPageTitle(state: State, title: string) {
             state.currentPageTitle = title.toUpperCase();
-        },
-        setApiConfig(state: State, config: ApiConfig) {
-            state.apiConfig = config;
         }
     },
     actions: {
@@ -53,6 +47,5 @@ export default createStore<State>({
     },
     getters: {
         currentPageTitle: (state: State) => state.currentPageTitle,
-        getApisByType: (state: State) => (type: 'HTTP' | 'TCP_UDP') => state.apiConfig[type]
     }
 });

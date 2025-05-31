@@ -31,7 +31,6 @@ export default defineComponent({
 
         const categories = computed(() => {
             const pageTitle = store.state.currentPageTitle;
-            return store.getters.getApisByType(pageTitle);
         });
 
         return {

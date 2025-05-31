@@ -132,7 +132,6 @@ const fetchAPIDocs = async () => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const { data, message } = await res.json()
         apis.value = data
-        console.log('API Docs:', apis.value)
     } catch (err: any) {
         error.value = err instanceof Error ? err.message : 'Unknown error'
     } finally {

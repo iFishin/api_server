@@ -2,12 +2,18 @@
     <nav class="navbar">
         <div class="navbar-brand">
             <router-link to="/">
-                <IconApi />
-                Api_Server
+            <IconApi />
+            Api_Server
             </router-link>
         </div>
         <ul class="navbar-menu">
-            <li v-for="(item, index) in menuItems" :key="index">
+            <li class="nav-item">
+                <router-link to="/" class="nav-link">
+                    <i class="fas fa-home"></i> <!-- 或其他合适的图标 -->
+                    <span>Home</span>
+                </router-link>
+            </li>
+            <li v-for="(item, index) in menuItems" :key="index" class="nav-item">
                 <router-link :to="'/' + item.toLowerCase()">{{ item }}</router-link>
             </li>
             <li class="nav-item">
@@ -35,6 +41,8 @@ export default defineComponent({
         const store = useStore();
         const route = useRoute();
         const menuItems = ref<string[]>([]);
+
+        menuItems.value = ['USERS', 'HTTP', 'TCP_UDP', 'MQTT'];
 
         onMounted(() => {
 
@@ -78,6 +86,12 @@ export default defineComponent({
     justify-content: space-between;
     align-items: center;
     height: 100%;
+}
+
+.navbar-brand {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #2c3e50;
 }
 
 .navbar-brand a {
