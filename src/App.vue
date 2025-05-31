@@ -11,7 +11,7 @@
       </aside>
       <main>
         <RouterView />
-        <ApiDocViewer />
+        <ApiDocViewer apiGroup="default" v-if="showApiDoc" />
       </main>
     </div>
   </div>
@@ -21,6 +21,18 @@
 import HeaderNavBar from './components/HeaderNavBar.vue';
 import SideNavBar from './components/SideNavBar.vue';
 import ApiDocViewer from './components/ApiDocViewer.vue';
+import { useRoute } from 'vue-router';
+import { computed } from 'vue';
+
+const route = useRoute();
+
+
+const showApiDoc = computed(() => {
+  console.log('Current route:', route.name);
+  // 显示 API 文档的条件：路由名称为 'api-docs' 或者包含 'api' 的路由
+  return route.path in ['HTTP', 'HTTP', 'TCP_UDP'] || route.name?.toString().includes('api');
+})
+
 </script>
 
 <style>

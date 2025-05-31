@@ -47,7 +47,6 @@ export default defineComponent({
 
         const updateTitle = (title: string) => {
             store.commit('setCurrentPageTitle', title.substring(1));
-            console.log(store.state.currentPageTitle);
         };
 
         watch(
@@ -56,7 +55,6 @@ export default defineComponent({
                 updateTitle(newPath);
             }
         );
-        console.log(menuItems);
 
         return {
             menuItems,

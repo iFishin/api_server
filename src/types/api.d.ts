@@ -19,9 +19,21 @@ export interface ApiParameter {
   schema: JSONSchema
 }
 
+export interface MultipartFormDataSchema {
+  type: 'object'
+  properties: Record<string, JSONSchema | {
+    type: 'string'
+    format: 'binary' // For file uploads
+    description?: string
+    example?: any
+  }>
+  required?: string[]
+}
+
 export interface JSONSchema {
   type: string
   format?: string
+  description?: string
   example?: any
   properties?: Record<string, JSONSchema>
   items?: JSONSchema
@@ -29,7 +41,10 @@ export interface JSONSchema {
 
 declare interface RequestBody {
   content: {
-    'application/json': {
+    'multipart/form-data'?: {
+      schema: MultipartFormDataSchema 
+    },
+    'application/json'?: {
       schema: JSONSchema
     }
   }

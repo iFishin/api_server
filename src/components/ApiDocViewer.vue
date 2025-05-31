@@ -176,13 +176,12 @@ onMounted(fetchAPIDocs)
 
 <style scoped>
 .api-doc-viewer {
-    max-width: 1200px;
+    width: 100%;
     margin: 0 auto;
     padding: 2.5rem 2rem 3rem 2rem;
     background: #f7f9fb;
     border-radius: 18px;
     box-shadow: 0 6px 32px 0 rgba(30, 34, 90, 0.08), 0 1.5px 4px 0 rgba(30, 34, 90, 0.04);
-    min-height: 90vh;
 }
 .main-title {
     font-size: 2.4rem;
@@ -225,6 +224,16 @@ onMounted(fetchAPIDocs)
 .method-tag.post { background: linear-gradient(90deg, #36d1c4 0%, #5b86e5 100%); }
 .method-tag.put { background: linear-gradient(90deg, #ffe259 0%, #ffa751 100%); color: #333; }
 .method-tag.delete { background: linear-gradient(90deg, #ff5858 0%, #f09819 100%); }
+.method-tag.options { background: linear-gradient(90deg, #00c6ff 0%, #0072ff 100%); }
+.method-tag.head { background: linear-gradient(90deg, #ff416c 0%, #ff4b2b 100%); }
+.method-tag.patch { background: linear-gradient(90deg, #f7971e 0%, #ffd200 100%); color: #333; }
+.method-tag.trace { background: linear-gradient(90deg, #00c6ff 0%, #0072ff 100%); }
+.method-tag.connect { background: linear-gradient(90deg, #f7971e 0%, #ffd200 100%); color: #333; }
+.method-tag.custom {
+    background: linear-gradient(90deg, #6a11cb 0%, #2575fc 100%);
+    color: #fff;
+}
+
 .api-title {
     font-size: 1.45rem;
     font-weight: 600;
