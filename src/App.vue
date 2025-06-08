@@ -6,7 +6,7 @@
       </nav>
     </header>
     <div class="main-container">
-      <aside>
+      <aside v-if="showAside">
         <SideNavBar />
       </aside>
       <main>
@@ -22,16 +22,22 @@ import HeaderNavBar from './components/HeaderNavBar.vue';
 import SideNavBar from './components/SideNavBar.vue';
 import ApiDocViewer from './components/ApiDocViewer.vue';
 import { useRoute } from 'vue-router';
-import { computed } from 'vue';
+import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue';
 
 const route = useRoute();
 
-
 const showApiDoc = computed(() => {
-  console.log('Current route:', route.name);
-  // 显示 API 文档的条件：路由名称为 'api-docs' 或者包含 'api' 的路由
-  return route.path in ['HTTP', 'HTTP', 'TCP_UDP'] || route.name?.toString().includes('api');
+  return route.path in ['USERS', 'HTTP', 'MQTT', 'TCP_UDP'] || route.name?.toString().includes('api');
 })
+
+const showAside = ref(false);
+
+watch(
+  () => route.path,
+  (newPath) => {
+    showAside.value = ['USERS', 'HTTP', 'MQTT', 'TCP_UDP'].includes(newPath.replace(/^\//, '').toUpperCase());
+  }
+);
 
 </script>
 
@@ -39,6 +45,7 @@ const showApiDoc = computed(() => {
 #app {
   height: 100vh;
   width: 100%;
+  min-height: 100vh;
   background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
   color: #22223b;
   display: flex;
@@ -71,45 +78,56 @@ nav {
   min-width: 0;
   margin: 0 auto;
   box-sizing: border-box;
-  padding: 1rem 0;
-  gap: 1rem;
+  padding: 2rem 0;
+  gap: 2rem;
   min-height: 0;
   flex-grow: 1;
-  align-items: stretch;
+  align-items: flex-start;
+  max-width: 1400px;
+  transition: all 0.2s;
+  height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 
 aside {
-  width: 260px;
+  width: 240px;
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(30, 41, 59, 0.04);
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(30, 41, 59, 0.06);
   border: 1px solid #e2e8f0;
   overflow-y: auto;
   flex-shrink: 0;
   min-height: 0;
-  transition: box-shadow 0.2s;
+  transition: box-shadow 0.2s, width 0.2s;
 }
 
 aside:hover {
-  box-shadow: 0 4px 16px rgba(30, 41, 59, 0.08);
+  box-shadow: 0 4px 18px rgba(30, 41, 59, 0.10);
 }
 
 main {
   flex: 1 1 0;
-  padding: 2rem;
+  padding: 2.2rem 2rem;
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(30, 41, 59, 0.04);
-  min-height: 400px; /* 新增：防止内容为空时塌陷 */
+  border-radius: 18px;
+  box-shadow: 0 4px 24px rgba(30, 41, 59, 0.08);
+  min-height: 400px;
+  width: 100%;
   box-sizing: border-box;
   position: relative;
   border: 1px solid #e2e8f0;
-  overflow: auto; /* 新增：内容多时可滚动 */
+  word-wrap: break-word;
+  overflow: auto;
   display: flex;
   flex-direction: column;
+  margin: 0 auto;
+  transition: padding 0.2s, border-radius 0.2s, box-shadow 0.2s;
+  height: 100%;
+  max-height: 100%;
 }
 
-/* 响应式设计 */
+/* 平板适配 */
 @media (max-width: 1200px) {
   .main-container {
     gap: 1rem;
@@ -117,49 +135,61 @@ main {
     max-width: 100vw;
   }
   aside {
-    width: 200px;
+    width: 160px;
+  }
+  main {
+    padding: 1.2rem;
+    border-radius: 12px;
+    max-width: 98vw;
   }
 }
 
+/* 手机和平板竖屏适配 */
 @media (max-width: 900px) {
   .main-container {
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.5rem;
     padding: 0.5rem;
+    max-width: 100vw;
+    align-items: stretch;
   }
   aside {
-    width: 100%;
-    min-height: 48px;
-    max-height: 220px;
-    border-radius: 8px;
-    border-bottom: 1px solid #e2e8f0;
-    border-right: none;
-    margin-bottom: 0.5rem;
+    display: none !important;
   }
   main {
     padding: 1rem;
-    border-radius: 8px;
-    min-height: 200px;
+    border-radius: 10px;
+    min-height: 180px;
+    max-width: 100vw;
+    margin: 0;
   }
 }
 
+/* 小屏手机适配 */
 @media (max-width: 600px) {
   header {
-    height: 48px;
-    padding: 0 0.5rem;
+    height: 44px;
+    padding: 0 0.3rem;
   }
   .main-container {
-    padding: 0.25rem;
-    gap: 0.5rem;
-  }
-  aside,
-  main {
-    border-radius: 4px;
-    padding: 0.5rem;
+    padding: 0.1rem;
+    gap: 0.2rem;
   }
   main {
+    border-radius: 6px;
     padding: 0.5rem;
-    min-height: 120px;
+    min-height: 100px;
+    font-size: 0.98em;
+    max-width: 100vw;
+  }
+}
+
+/* 超小屏适配 */
+@media (max-width: 400px) {
+  main {
+    padding: 0.2rem !important;
+    font-size: 0.92em;
+    border-radius: 3px;
   }
 }
 

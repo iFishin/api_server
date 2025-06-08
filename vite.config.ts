@@ -23,6 +23,7 @@ export default defineConfig(({ mode }) => {
       'process.env.VITE_WEBDAV_BASE_URL': JSON.stringify(env.VITE_WEBDAV_BASE_URL || 'http://localhost:3000/webdav')
     },
     server: {
+      host: '0.0.0.0',
       port: 5173,
       proxy: {
         '^/api/.*': {

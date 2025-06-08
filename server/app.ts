@@ -3,12 +3,15 @@ import cors from 'cors';
 import path from "path";
 import helmet from 'helmet';
 import morgan from 'morgan';
-import userRoutes from './routes/userRoutes';
-import httpRoutes from './routes/httpRoutes';
-import { errorHandler } from './middlewares/errorHandler';
-import fileRoutes from './routes/fileRoutes';
-import { setupWebDAV } from './webdav';
+import userRoutes from '@routes/userRoutes';
+import httpRoutes from '@routes/httpRoutes';
+import { errorHandler } from '@middlewares/errorHandler';
+import fileRoutes from '@routes/fileRoutes';
+import { setupWebDAV } from '@services/webdavService';
 import { getApiDocs } from '@services/docService';
+import { mqttService } from '@services/mqttService';
+import { tcpService } from '@services/tcpService';
+import { udpService } from '@services/udpService';
 
 const app = express();
 const __dirname = path.resolve(); // 获取项目根目录
@@ -45,6 +48,15 @@ app.get('/api/docs', (req, res) => {
     message: 'API documentation retrieved successfully'
   });
 });
+
+// MQTT 服务
+mqttService.isSerListening(); // 检查MQTT服务是否在监听
+
+// TCP 服务
+tcpService.isSerListening(); // 检查TCP服务是否在监听
+
+// UDP 服务
+udpService.isSerListening(); // 检查UDP服务是否在监听
 
 // 静态文件路径
 const publicPath = path.join(__dirname, "server/public");

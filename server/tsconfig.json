@@ -3,17 +3,18 @@
     "compilerOptions": {
       "module": "CommonJS",
       "moduleResolution": "node",
+      "types": ["node"],
       "baseUrl": "./",
       "paths": {
-        "@utils/*": ["./utils/*"],
-        "@config/*": ["./config/*"],
-        "@controllers/*": ["./controllers/*"],
-        "@models/*": ["./models/*"],
-        "@routes/*": ["./routes/*"],
-        "@middlewares/*": ["./middlewares/*"],
-        "@services/*": ["./services/*"],
-        "@types/*": ["./types/*"],
-        "@tests/*": ["./tests/*"]
+        "@utils/*": ["utils/*"],
+        "@config/*": ["config/*"],
+        "@controllers/*": ["controllers/*"],
+        "@models/*": ["models/*"],
+        "@routes/*": ["routes/*"],
+        "@middlewares/*": ["middlewares/*"],
+        "@services/*": ["services/*"],
+        "@types/*": ["types/*"],
+        "@tests/*": ["tests/*"]
       },
       "esModuleInterop": true,
       "allowSyntheticDefaultImports": true,

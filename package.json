@@ -5,6 +5,7 @@
   "scripts": {
     "frontend": "vite",
     "backend": "ts-node -r tsconfig-paths/register -P server/tsconfig.json server/server.ts",
+    "test": "ts-node -r tsconfig-paths/register -P server/tsconfig.json server/tests/main.ts",
     "dev": "concurrently \"vite\" \"ts-node -r tsconfig-paths/register -P server/tsconfig.json server/server.ts\"",
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
@@ -17,6 +18,7 @@
   "dependencies": {
     "@types/multer": "^1.4.12",
     "@vueuse/core": "^13.2.0",
+    "aedes": "^0.51.3",
     "axios": "^1.8.4",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
@@ -40,7 +42,7 @@
     "@types/highlight.js": "^10.1.0",
     "@types/marked": "^6.0.0",
     "@types/morgan": "^1.9.9",
-    "@types/node": "^22.13.1",
+    "@types/node": "^22.15.30",
     "@vitejs/plugin-vue": "^5.2.1",
     "@vue/tsconfig": "^0.7.0",
     "concurrently": "^9.1.2",
