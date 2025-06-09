@@ -74,16 +74,16 @@ nav {
 .main-container {
   display: flex;
   flex: 1 1 0;
-  width: 100%;
+  width: 90%;
   min-width: 0;
   margin: 0 auto;
   box-sizing: border-box;
   padding: 2rem 0;
-  gap: 2rem;
+  gap: 0rem;
   min-height: 0;
   flex-grow: 1;
-  align-items: flex-start;
-  max-width: 1400px;
+  align-items: stretch;
+  justify-content: space-between;
   transition: all 0.2s;
   height: 0;
   flex: 1 1 auto;
@@ -91,7 +91,7 @@ nav {
 }
 
 aside {
-  width: 240px;
+  width: 20%;
   background: #fff;
   border-radius: 14px;
   box-shadow: 0 2px 12px rgba(30, 41, 59, 0.06);
@@ -112,8 +112,8 @@ main {
   background: #fff;
   border-radius: 18px;
   box-shadow: 0 4px 24px rgba(30, 41, 59, 0.08);
-  min-height: 400px;
   width: 100%;
+  height: 100%;
   box-sizing: border-box;
   position: relative;
   border: 1px solid #e2e8f0;
@@ -123,8 +123,6 @@ main {
   flex-direction: column;
   margin: 0 auto;
   transition: padding 0.2s, border-radius 0.2s, box-shadow 0.2s;
-  height: 100%;
-  max-height: 100%;
 }
 
 /* 平板适配 */

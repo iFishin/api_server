@@ -65,6 +65,7 @@ import IconApi from '@/components/icons/IconApi.vue';
 <style scoped>
 .home-view {
   width: 100%;
+  height: 100%;
   margin: 0.5rem auto;
   padding: 2.5rem 1.5rem 1.5rem 1.5rem;
   border-radius: 22px;
@@ -91,10 +92,18 @@ import IconApi from '@/components/icons/IconApi.vue';
   box-shadow: 0 2px 14px rgba(25, 118, 210, 0.15);
 }
 
+.logo-badge IconApi {
+  vertical-align: middle;
+  margin-right: 0.3em;
+  fill: #fff;
+}
+
 .logo-badge svg {
   vertical-align: middle;
-  width: 1em;
-  height: 1em;
+  fill: #fff;
+  margin-right: 0.5em;
+  width: 1.5em;
+  height: 1.5em;
 }
 
 .subtitle {
