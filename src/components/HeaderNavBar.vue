@@ -19,7 +19,7 @@
           </router-link>
         </li>
         <li v-for="(item, index) in menuItems" :key="index" class="nav-item">
-          <router-link :to="'/' + item.toLowerCase()">{{ item }}</router-link>
+          <router-link :to="'/' + item.toLowerCase()" class="nav-link" >{{ item }}</router-link>
         </li>
         <li class="nav-item">
           <RouterLink to="/webdav-ui" class="nav-link">
