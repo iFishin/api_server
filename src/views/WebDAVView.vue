@@ -1,10 +1,3 @@
-<!--
- * @Date: 2025-04-19
- * @LastEditors: Fishing
- * @LastEditTime: 2025-04-20
- * @FilePath: \Api_Server\src\views\WebDAVView.vue
- * @Description: https://github.com/iFishin
--->
 <template>
     <div class="webdav-container">
         <div class="header">
@@ -73,11 +66,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
-
-// 配置 axios 默认值
-const API_BASE_URL = 'http://localhost:3000'
-axios.defaults.baseURL = API_BASE_URL
+import api, { getApiBaseUrl } from '@/utils/api'
 
 interface FileItem {
     name: string;
@@ -98,6 +87,9 @@ const previewFile = ref<FileItem | null>(null);
 const previewContent = ref<string>('');
 const previewLoading = ref<boolean>(false);
 
+// 获取API基础URL
+const API_BASE_URL = getApiBaseUrl();
+
 // 页面加载时获取文件列表
 onMounted(() => {
     refreshFiles();
@@ -109,7 +101,7 @@ async function refreshFiles() {
     error.value = null;
 
     try {
-        const response = await axios.get('/api/files');
+        const response = await api.get('/api/files');
         files.value = response.data;
     } catch (err) {
         error.value = (err as Error).message || '无法获取文件列表';
@@ -137,7 +129,7 @@ async function uploadFiles() {
             const formData = new FormData();
             formData.append('file', file);
             
-            await axios.post('/api/files/upload', formData, {
+            await api.post('/api/files/upload', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
                 }
@@ -164,7 +156,7 @@ async function deleteFile(file: FileItem) {
     if (!confirm(`确定要删除 "${file.name}" 吗?`)) return;
 
     try {
-        await axios.delete(`/api/files/${encodeURIComponent(file.name)}`);
+        await api.delete(`/api/files/${encodeURIComponent(file.name)}`);
         refreshFiles();
     } catch (err) {
         alert(`删除失败: ${(err as Error).message || '未知错误'}`);
@@ -189,7 +181,7 @@ async function handleFileClick(file: FileItem) {
         previewContent.value = '';
         
         try {
-            const response = await axios.get(`/api/files/preview/${encodeURIComponent(file.name)}`, {
+            const response = await api.get(`/api/files/preview/${encodeURIComponent(file.name)}`, {
                 responseType: 'text'
             });
             previewContent.value = response.data;

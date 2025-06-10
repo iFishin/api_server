@@ -18,9 +18,28 @@ const __dirname = path.resolve(); // 获取项目根目录
 
 // 中间件配置
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: function (origin, callback) {
+    // 允许的源列表
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://localhost:8080',
+      'http://127.0.0.1:5173',
+      'http://127.0.0.1:8080'
+    ];
+    
+    // 在开发环境中，也允许任何来自5173和8080端口的请求
+    if (!origin || 
+        allowedOrigins.includes(origin) || 
+        origin.match(/^http:\/\/[\d.]+:5173$/) ||
+        origin.match(/^http:\/\/[\d.]+:8080$/)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true // 如果需要发送cookies的话
 }));
 app.use(helmet({
   contentSecurityPolicy: false, // 在开发阶段可能需要禁用CSP

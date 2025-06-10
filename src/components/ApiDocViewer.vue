@@ -102,12 +102,12 @@ import type { ApiDocument } from '@/types/api'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github-dark.css'
+import api from '@/utils/api'
 
 // 引入子组件
 import ParamDetail from './ParamDetail.vue'
 import SchemaViewer from './SchemaViewer.vue'
 import TestPanel from './TestPanel.vue'
-import type any from 'axios'
 
 // 组件配置
 const props = defineProps<{
@@ -128,16 +128,26 @@ const fetchAPIDocs = async () => {
     try {
         loading.value = true
         error.value = null
-        const res = await fetch(`/api/docs?group=${props.apiGroup}`)
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const { data, message } = await res.json()
-        apis.value = data
+        const response = await api.get(`/api/docs`, {
+            params: { group: props.apiGroup }
+        })
+        apis.value = response.data.data
     } catch (err: any) {
-        error.value = err instanceof Error ? err.message : 'Unknown error'
+        if (err.response) {
+            // 服务器响应了错误状态码
+            error.value = `HTTP ${err.response.status}: ${err.response.data?.message || err.message}`
+        } else if (err.request) {
+            // 请求已发出但没有收到响应
+            error.value = 'No response from server'
+        } else {
+            // 其他错误
+            error.value = err.message || 'Unknown error'
+        }
     } finally {
         loading.value = false
     }
 }
+
 const retryLoading = () => {
     error.value = null
     fetchAPIDocs()

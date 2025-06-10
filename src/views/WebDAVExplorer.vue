@@ -62,7 +62,7 @@
   import axios from 'axios'
 
   // 配置 axios 默认值
-  axios.defaults.baseURL = 'http://localhost:3000'
+  // axios.defaults.baseURL = 'http://localhost:3000'
 
   const store = useStore()
 
