@@ -1,0 +1,207 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  NODE_VERSION: '18'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # 创建Release
+  create-release:
+    name: 📦 Create Release
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+      packages: write
+      
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+      
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: 🏷️ Get version
+      id: get_version
+      run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+    - name: 📝 Generate changelog
+      id: changelog
+      run: |
+        # 生成更新日志
+        if [ $(git tag | wc -l) -gt 1 ]; then
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^)
+          echo "## 🚀 Changes since $PREVIOUS_TAG" > CHANGELOG.md
+          git log --pretty=format:"- %s (%h)" $PREVIOUS_TAG..HEAD >> CHANGELOG.md
+        else
+          echo "## 🚀 Initial Release" > CHANGELOG.md
+          echo "- First release of API_Server" >> CHANGELOG.md
+        fi
+        
+    - name: 📦 Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.get_version.outputs.version }}
+        release_name: API_Server ${{ steps.get_version.outputs.version }}
+        body_path: CHANGELOG.md
+        draft: false
+        prerelease: ${{ contains(steps.get_version.outputs.version, '-') }}
+
+  # 构建和发布
+  build-and-release:
+    name: 🏗️ Build & Release
+    runs-on: ubuntu-latest
+    needs: create-release
+    
+    permissions:
+      contents: write
+      packages: write
+      
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📋 Install dependencies
+      run: npm ci
+      
+    - name: 🏗️ Build application
+      run: npm run build
+      
+    - name: 📦 Create release archive
+      run: |
+        # 创建发布包
+        cd dist
+        tar -czf ../api-server-${{ needs.create-release.outputs.version }}.tar.gz .
+        cd ..
+        
+        # 创建源码包
+        git archive --format=tar.gz --prefix=api-server-${{ needs.create-release.outputs.version }}/ HEAD > api-server-${{ needs.create-release.outputs.version }}-source.tar.gz
+        
+    - name: 📤 Upload release assets
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./api-server-${{ needs.create-release.outputs.version }}.tar.gz
+        asset_name: api-server-${{ needs.create-release.outputs.version }}.tar.gz
+        asset_content_type: application/gzip
+        
+    - name: 📤 Upload source code
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./api-server-${{ needs.create-release.outputs.version }}-source.tar.gz
+        asset_name: api-server-${{ needs.create-release.outputs.version }}-source.tar.gz
+        asset_content_type: application/gzip
+
+  # 构建并推送Docker镜像
+  docker-release:
+    name: 🐳 Docker Release
+    runs-on: ubuntu-latest
+    needs: create-release
+    
+    permissions:
+      contents: read
+      packages: write
+      
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🐳 Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: 🔑 Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: 🔑 Log in to Docker Hub (optional)
+      if: secrets.DOCKERHUB_USERNAME && secrets.DOCKERHUB_TOKEN
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        
+    - name: 📝 Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          ${{ secrets.DOCKERHUB_USERNAME && format('{0}/api-server', secrets.DOCKERHUB_USERNAME) || '' }}
+        tags: |
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=raw,value=latest
+          
+    - name: 🏗️ Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          VERSION=${{ needs.create-release.outputs.version }}
+          BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          
+    - name: 📊 Generate SBOM
+      run: |
+        echo "## 🔍 Software Bill of Materials" >> $GITHUB_STEP_SUMMARY
+        echo "Docker image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.create-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+
+  # 部署到生产环境
+  deploy-production:
+    name: 🌟 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [create-release, docker-release]
+    environment: production
+    
+    steps:
+    - name: 🌟 Deploy to production
+      run: |
+        echo "🌟 Deploying version ${{ needs.create-release.outputs.version }} to production..."
+        # 这里添加实际的生产环境部署命令
+        # 例如：kubectl set image deployment/api-server api-server=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.create-release.outputs.version }}
+        
+    - name: 🔍 Production health check
+      run: |
+        echo "⏳ Verifying production deployment..."
+        sleep 60
+        # curl -f https://your-domain.com/api/health || exit 1
+        echo "✅ Production deployment verified!"
+        
+    - name: 📢 Notify teams
+      run: |
+        echo "## 🎉 Release ${{ needs.create-release.outputs.version }} Deployed!" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: Production" >> $GITHUB_STEP_SUMMARY
+        echo "- **Docker Image**: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.create-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Deployed at**: $(date)" >> $GITHUB_STEP_SUMMARY

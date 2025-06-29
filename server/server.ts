@@ -1,4 +1,4 @@
-import app from './app';
+const app = require('./app');
 import dotenv from 'dotenv';
 import { openDb } from './db';
 import https from 'https';
@@ -8,9 +8,18 @@ import path from 'path';
 // 加载环境变量
 dotenv.config();
 
-const PORT = parseInt(process.env.PORT || '3000', 10);
-const SSL_KEY = path.join(__dirname, '/certs/server.key');
-const SSL_CERT = path.join(__dirname, '/certs/server.crt');
+// 根据环境确定端口
+const isProduction = process.env.NODE_ENV === 'production';
+const HTTP_PORT = parseInt(process.env.HTTP_PORT || (isProduction ? '80' : '3000'), 10);
+const HTTPS_PORT = parseInt(process.env.HTTPS_PORT || (isProduction ? '443' : '3443'), 10);
+
+// 根据环境确定证书路径
+const certsDir = isProduction 
+  ? path.join(__dirname, 'certs')
+  : path.join(__dirname, 'certs');
+
+const SSL_KEY = path.join(certsDir, 'server.key');
+const SSL_CERT = path.join(certsDir, 'server.crt');
 
 async function initDb() {
     const db = await openDb();
@@ -42,16 +51,24 @@ async function startServer() {
                 key: fs.readFileSync(SSL_KEY),
                 cert: fs.readFileSync(SSL_CERT)
             };
-            https.createServer(options, app).listen(PORT, () => {
-                console.log(`HTTPS Server is running on https://0.0.0.0:${PORT}`);
+            // HTTPS 服务器
+            https.createServer(options, app).listen(HTTPS_PORT, '0.0.0.0', () => {
+                console.log(`🔒 HTTPS Server is running on https://0.0.0.0:${HTTPS_PORT}`);
             });
-            // 同时开启 HTTP 端口（可选，端口+1）
-            app.listen(PORT + 1, '0.0.0.0', () => {
-                console.log(`HTTP Server is running on http://0.0.0.0:${PORT + 1}`);
+            // HTTP 服务器（重定向到 HTTPS）
+            const redirectApp = require('express')();
+            redirectApp.use((req: any, res: any) => {
+                res.redirect(301, `https://${req.header('host').replace(/:\d+/, `:${HTTPS_PORT}`)}${req.url}`);
+            });
+            redirectApp.listen(HTTP_PORT, '0.0.0.0', () => {
+                console.log(`🌐 HTTP Server (redirect) is running on http://0.0.0.0:${HTTP_PORT}`);
+                console.log(`💡 All HTTP traffic will be redirected to HTTPS`);
             });
         } else {
-            app.listen(PORT, '0.0.0.0', () => {
-                console.log(`HTTP Server is running on http://0.0.0.0:${PORT}`);
+            // 仅 HTTP 服务器
+            app.listen(HTTP_PORT, '0.0.0.0', () => {
+                console.log(`🌐 HTTP Server is running on http://0.0.0.0:${HTTP_PORT}`);
+                console.log(`💡 Environment: ${isProduction ? 'production' : 'development'}`);
             });
         }
     } catch (err) {

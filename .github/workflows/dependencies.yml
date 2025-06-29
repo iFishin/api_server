@@ -1,0 +1,106 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    # 每周一早上8点检查依赖更新
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+
+jobs:
+  update-dependencies:
+    name: 🔄 Update Dependencies
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+      pull-requests: write
+      
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: 🔍 Check for updates
+      run: |
+        npm outdated --json > outdated.json || true
+        if [ -s outdated.json ]; then
+          echo "📦 Found dependency updates:"
+          cat outdated.json | jq -r 'to_entries[] | "- \(.key): \(.value.current) → \(.value.wanted)"'
+          echo "HAS_UPDATES=true" >> $GITHUB_ENV
+        else
+          echo "✅ All dependencies are up to date"
+          echo "HAS_UPDATES=false" >> $GITHUB_ENV
+        fi
+        
+    - name: 📋 Update dependencies
+      if: env.HAS_UPDATES == 'true'
+      run: |
+        # 更新非主版本依赖
+        npm update
+        
+        # 检查是否有变化
+        if git diff --quiet package-lock.json; then
+          echo "NO_CHANGES=true" >> $GITHUB_ENV
+        else
+          echo "NO_CHANGES=false" >> $GITHUB_ENV
+        fi
+        
+    - name: 🧪 Run tests
+      if: env.HAS_UPDATES == 'true' && env.NO_CHANGES == 'false'
+      run: |
+        npm ci
+        npm run type-check
+        npm run test || echo "TEST_FAILED=true" >> $GITHUB_ENV
+        
+    - name: 📝 Create Pull Request
+      if: env.HAS_UPDATES == 'true' && env.NO_CHANGES == 'false' && env.TEST_FAILED != 'true'
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: '🔄 chore: update dependencies'
+        title: '🔄 Automated dependency updates'
+        body: |
+          ## 🔄 Automated Dependency Updates
+          
+          This PR updates dependencies to their latest compatible versions.
+          
+          ### 📦 Updated packages:
+          ```json
+          $(cat outdated.json | jq -r 'to_entries[] | "- \(.key): \(.value.current) → \(.value.wanted)"')
+          ```
+          
+          ### ✅ Checks:
+          - [x] Dependencies updated
+          - [x] Tests passing
+          - [x] Type checking passed
+          
+          This PR was automatically created by the dependency update workflow.
+        branch: automated-dependency-updates
+        delete-branch: true
+        
+    - name: 📊 Summary
+      run: |
+        if [ "${{ env.HAS_UPDATES }}" = "true" ]; then
+          if [ "${{ env.NO_CHANGES }}" = "false" ]; then
+            if [ "${{ env.TEST_FAILED }}" != "true" ]; then
+              echo "## ✅ Dependency Update Successful" >> $GITHUB_STEP_SUMMARY
+              echo "A pull request has been created with dependency updates." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "## ❌ Tests Failed" >> $GITHUB_STEP_SUMMARY
+              echo "Dependency updates are available but tests failed." >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "## ℹ️ No Changes" >> $GITHUB_STEP_SUMMARY
+            echo "Dependencies are already up to date." >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          echo "## ✅ All Up to Date" >> $GITHUB_STEP_SUMMARY
+          echo "No dependency updates available." >> $GITHUB_STEP_SUMMARY
+        fi

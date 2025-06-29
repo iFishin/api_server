@@ -1,0 +1,171 @@
+name: Security Scan
+
+on:
+  schedule:
+    # 每天凌晨2点运行安全扫描
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # 依赖安全扫描
+  dependency-scan:
+    name: 🔒 Dependency Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: 📋 Install dependencies
+      run: npm ci
+      
+    - name: 🔍 Run npm audit
+      run: |
+        npm audit --audit-level=moderate --json > audit-results.json || true
+        if [ -s audit-results.json ]; then
+          echo "## 🔒 Security Audit Results" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+          cat audit-results.json | jq '.vulnerabilities' >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+    - name: 🔧 Auto-fix vulnerabilities
+      run: |
+        npm audit fix --force || true
+        if ! git diff --quiet package-lock.json; then
+          echo "FIXES_AVAILABLE=true" >> $GITHUB_ENV
+        fi
+        
+    - name: 📝 Create security fix PR
+      if: env.FIXES_AVAILABLE == 'true'
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: '🔒 security: auto-fix vulnerabilities'
+        title: '🔒 Security: Automated vulnerability fixes'
+        body: |
+          ## 🔒 Automated Security Fixes
+          
+          This PR contains automated fixes for security vulnerabilities found by npm audit.
+          
+          ### 🛡️ Changes:
+          - Updated vulnerable dependencies
+          - Applied security patches
+          
+          ### ✅ Verification:
+          Please review and test these changes before merging.
+          
+          This PR was automatically created by the security scan workflow.
+        branch: security-fixes
+        delete-branch: true
+
+  # 代码安全扫描
+  code-scan:
+    name: 🔍 Code Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🔍 Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: javascript, typescript
+        
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: 📋 Install dependencies
+      run: npm ci
+      
+    - name: 🏗️ Build for analysis
+      run: npm run build
+      
+    - name: 🔍 Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+
+  # Docker镜像安全扫描
+  docker-scan:
+    name: 🐳 Docker Security Scan
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🐳 Build Docker image
+      run: docker build -t api-server-security-scan .
+      
+    - name: 🔒 Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'api-server-security-scan'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: 📤 Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: 'trivy-results.sarif'
+        
+    - name: 🔍 Scan for secrets
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: main
+        head: HEAD
+        extra_args: --debug --only-verified
+
+  # 许可证合规检查
+  license-scan:
+    name: 📄 License Compliance Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: 📋 Install dependencies
+      run: npm ci
+      
+    - name: 📄 Check licenses
+      run: |
+        npx license-checker --summary > license-summary.txt
+        echo "## 📄 License Summary" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        cat license-summary.txt >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        
+    - name: 🚫 Check for forbidden licenses
+      run: |
+        # 检查是否有禁用的许可证
+        FORBIDDEN_LICENSES="GPL-3.0,AGPL-3.0,LGPL-3.0"
+        if npx license-checker --excludePrivatePackages --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;Unlicense" --failOn "$FORBIDDEN_LICENSES"; then
+          echo "✅ All licenses are compliant"
+        else
+          echo "❌ Found forbidden licenses"
+          exit 1
+        fi

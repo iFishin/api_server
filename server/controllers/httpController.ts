@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 const fs = require("fs");
 const path = require("path");
-import { generateRepeatedString } from "@utils/stringUtils";
-import upload from "@middlewares/multer";
+import { generateRepeatedString } from "../utils/stringUtils";
+import upload from "../middlewares/multer";
 
 const get_files = async (req: Request, res: Response) => {
   const dirPath = path.join(__dirname, "../temps");

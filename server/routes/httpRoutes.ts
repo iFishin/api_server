@@ -1,6 +1,6 @@
 import express from "express";
 import { Request, Response } from "express";
-import { registerApiDoc } from "@services/docService";
+import { registerApiDoc } from "../services/docService";
 import {
   get_files,
   delete_file,
@@ -24,9 +24,9 @@ import {
   delete_remove,
   head_request,
   options_request,
-} from "@controllers/httpController";
+} from "../controllers/httpController";
 
-import upload from "@middlewares/multer";
+import upload from "../middlewares/multer";
 
 const router = express.Router();
 

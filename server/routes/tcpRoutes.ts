@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import * as tcpController from '@controllers/tcpController'
+import * as tcpController from '../controllers/tcpController'
 
 const router = Router()
 router.get('/status', tcpController.getStatus)

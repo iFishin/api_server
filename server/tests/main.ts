@@ -1,4 +1,4 @@
-import { udpService } from '@services/udpService'
+import { udpService } from '../services/udpService'
 
 
 udpService.isSerListening()

@@ -3,18 +3,19 @@ import cors from 'cors';
 import path from "path";
 import helmet from 'helmet';
 import morgan from 'morgan';
-import userRoutes from '@routes/userRoutes';
-import httpRoutes from '@routes/httpRoutes';
-import { errorHandler } from '@middlewares/errorHandler';
-import fileRoutes from '@routes/fileRoutes';
-import { setupWebDAV } from '@services/webdavService';
-import { getApiDocs } from '@services/docService';
-import { mqttService } from '@services/mqttService';
-import { tcpService } from '@services/tcpService';
-import { udpService } from '@services/udpService';
+import userRoutes from './routes/userRoutes';
+import httpRoutes from './routes/httpRoutes';
+import { errorHandler } from './middlewares/errorHandler';
+import fileRoutes from './routes/fileRoutes';
+import { setupWebDAV } from './services/webdavService';
+import { getApiDocs } from './services/docService';
+import { mqttService } from './services/mqttService';
+import { tcpService } from './services/tcpService';
+import { udpService } from './services/udpService';
 
 const app = express();
-const __dirname = path.resolve(); // 获取项目根目录
+// 获取项目根目录
+const projectRoot = path.resolve();
 
 // 中间件配置
 app.use(cors({
@@ -60,6 +61,15 @@ app.use('/api/users', userRoutes);
 app.use('/api/http', httpRoutes);
 app.use('/api/files', fileRoutes);
 
+// 健康检查端点
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 app.get('/api/docs', (req, res) => {
   res.json({
     success: true,
@@ -77,9 +87,23 @@ tcpService.isSerListening(); // 检查TCP服务是否在监听
 // UDP 服务
 udpService.isSerListening(); // 检查UDP服务是否在监听
 
-// 静态文件路径
-const publicPath = path.join(__dirname, "server/public");
-const tempsPath = path.join(__dirname, "server/temps");
+// 静态文件路径 - 根据环境确定路径
+const isProduction = process.env.NODE_ENV === 'production';
+
+// 开发环境：server 目录下的 public 和 temps
+// 生产环境：dist 目录下的结构
+let publicPath: string;
+let tempsPath: string;
+
+if (isProduction) {
+  // 生产环境：dist/server/server.js，所以 __dirname 是 dist/server
+  publicPath = path.join(__dirname, '..', 'public'); // dist/public
+  tempsPath = path.join(__dirname, 'temps'); // dist/server/temps
+} else {
+  // 开发环境：server/server.ts，所以 __dirname 是 server
+  publicPath = path.join(__dirname, 'public'); // server/public
+  tempsPath = path.join(__dirname, 'temps'); // server/temps
+}
 
 // 确保目录存在（可选）
 import fs from 'fs';
@@ -90,13 +114,31 @@ if (!fs.existsSync(tempsPath)) fs.mkdirSync(tempsPath, { recursive: true });
 app.use(express.static(publicPath));
 app.use("/temps", express.static(tempsPath));
 
-// 显式处理根路径
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
+// Vue 前端静态文件服务 (生产环境)
+if (isProduction) {
+  // 在生产环境下，静态文件在 dist 目录（上一级目录）
+  app.use(express.static(path.join(__dirname, '..')));
+  
+  // 处理 SPA 路由 - 所有非 API 路由都返回 index.html
+  app.get('*', (req, res, next) => {
+    // 如果是 API 路由，跳过
+    if (req.path.startsWith('/api/') || req.path.startsWith('/webdav/')) {
+      return next();
+    }
+    res.sendFile(path.join(__dirname, '..', 'index.html'));
+  });
+} else {
+  // 开发环境下的路由处理
+  app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, "server", "public", "index.html"));
+  });
+}
 
 app.get("/script.js", (req, res) => {
-    res.sendFile(path.join(__dirname, "public", "script.js"), {
+    const scriptPath = isProduction 
+      ? path.join(__dirname, "script.js")
+      : path.join(__dirname, "server", "public", "script.js");
+    res.sendFile(scriptPath, {
       headers: {
         "Content-Type": "application/javascript",
       },
@@ -104,16 +146,14 @@ app.get("/script.js", (req, res) => {
   });
 
 // 调试日志
+console.log("Environment:", isProduction ? 'production' : 'development');
+console.log("__dirname:", __dirname);
 console.log("Public Path:", publicPath);
 console.log("Temps Path:", tempsPath);
 
 setupWebDAV(app); // 设置 WebDAV
 
-// 处理Vue前端 - 添加以下内容
-const distPath = path.join(__dirname, '../dist');
-app.use(express.static(distPath));
-
 // 错误处理
 app.use(errorHandler);
 
-export default app;
+module.exports = app;

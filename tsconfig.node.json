@@ -1,10 +1,17 @@
 {
   "extends": "@tsconfig/node22/tsconfig.json",
-  "include": ["src/**/*.ts"],
+  "include": [
+    "server/**/*.ts",
+    "vite.config.ts",
+    "build.js",
+    "diagnose.js",
+    "test-build.js",
+    "quick-test.js"
+  ],
   "compilerOptions": {
     "noEmit": false,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
-    "module": "ESNext",
+    "module": "CommonJS",
     "moduleResolution": "node",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -15,10 +22,17 @@
     ],
     "strict": true,
     "forceConsistentCasingInFileNames": true,
-    "typeRoots": [
-      "node_modules/@types",
-      "node_modules/vuex/types",
-      "src/types"
-    ]
+    "baseUrl": "./",
+    "paths": {
+      "@utils/*": ["server/utils/*"],
+      "@config/*": ["server/config/*"],
+      "@controllers/*": ["server/controllers/*"],
+      "@models/*": ["server/models/*"],
+      "@routes/*": ["server/routes/*"],
+      "@middlewares/*": ["server/middlewares/*"],
+      "@services/*": ["server/services/*"],
+      "@types/*": ["server/types/*"],
+      "@tests/*": ["server/tests/*"]
+    }
   }
 }
