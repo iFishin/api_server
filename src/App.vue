@@ -26,18 +26,21 @@ import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue';
 
 const route = useRoute();
 
+// 路由配置 - 定义哪些页面需要显示侧边栏和API文档
+const routeConfig = {
+  sidebar: ['users', 'http', 'mqtt', 'tcp_udp', 'toolkit', 'webdav'],
+  apiDoc: ['users', 'http', 'mqtt', 'tcp_udp']
+};
+
 const showApiDoc = computed(() => {
-  return route.path in ['USERS', 'HTTP', 'MQTT', 'TCP_UDP'] || route.name?.toString().includes('api');
-})
+  const currentRoute = route.path.replace(/^\//, '').toLowerCase();
+  return routeConfig.apiDoc.includes(currentRoute) || route.name?.toString().includes('api');
+});
 
-const showAside = ref(false);
-
-watch(
-  () => route.path,
-  (newPath) => {
-    showAside.value = ['USERS', 'HTTP', 'MQTT', 'TCP_UDP'].includes(newPath.replace(/^\//, '').toUpperCase());
-  }
-);
+const showAside = computed(() => {
+  const currentRoute = route.path.replace(/^\//, '').toLowerCase();
+  return routeConfig.sidebar.includes(currentRoute);
+});
 
 </script>
 
@@ -74,11 +77,11 @@ nav {
 .main-container {
   display: flex;
   flex: 1 1 0;
-  width: 90%;
+  width: 100%;
   min-width: 0;
   margin: 0 auto;
   box-sizing: border-box;
-  padding: 2rem 0;
+  padding: 0.5rem 0;
   gap: 0rem;
   min-height: 0;
   flex-grow: 1;
@@ -108,7 +111,7 @@ aside:hover {
 
 main {
   flex: 1 1 0;
-  padding: 2.2rem 2rem;
+  padding: 0;
   background: #fff;
   border-radius: 18px;
   box-shadow: 0 4px 24px rgba(30, 41, 59, 0.08);
