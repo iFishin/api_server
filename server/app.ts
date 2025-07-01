@@ -20,32 +20,91 @@ const projectRoot = path.resolve();
 // 中间件配置
 app.use(cors({
   origin: function (origin, callback) {
+    // 在生产环境下，如果没有 origin（同源请求），应该允许
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    
     // 允许的源列表
     const allowedOrigins = [
       'http://localhost:5173',
       'http://localhost:8080',
+      'http://localhost:3000',
+      'http://localhost:80',
+      'http://localhost',        // 添加不带端口的localhost
       'http://127.0.0.1:5173',
-      'http://127.0.0.1:8080'
+      'http://127.0.0.1:8080',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:80',
+      'http://127.0.0.1'         // 添加不带端口的127.0.0.1
     ];
     
-    // 在开发环境中，也允许任何来自5173和8080端口的请求
-    if (!origin || 
-        allowedOrigins.includes(origin) || 
+    // 检查是否是局域网IP地址
+    const isPrivateNetwork = (url: string) => {
+      // 提取IP地址部分
+      const match = url.match(/^https?:\/\/([\d.]+)(?::\d+)?(?:\/.*)?$/);
+      if (!match) return false;
+      
+      const ip = match[1];
+      const parts = ip.split('.').map(Number);
+      
+      // 检查是否是私有网络IP段
+      return (
+        // 10.0.0.0/8 (10.0.0.0 - 10.255.255.255)
+        (parts[0] === 10) ||
+        // 172.16.0.0/12 (172.16.0.0 - 172.31.255.255)
+        (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
+        // 192.168.0.0/16 (192.168.0.0 - 192.168.255.255)
+        (parts[0] === 192 && parts[1] === 168) ||
+        // localhost
+        (parts[0] === 127 && parts[1] === 0 && parts[2] === 0 && parts[3] === 1)
+      );
+    };
+    
+    // 检查是否允许访问
+    if (allowedOrigins.includes(origin) || 
         origin.match(/^http:\/\/[\d.]+:5173$/) ||
-        origin.match(/^http:\/\/[\d.]+:8080$/)) {
+        origin.match(/^http:\/\/[\d.]+:8080$/) ||
+        origin.match(/^http:\/\/[\d.]+:3000$/) ||
+        origin.match(/^http:\/\/[\d.]+:80$/) ||
+        origin.match(/^http:\/\/[\d.]+$/) ||   // 添加不带端口的IP访问
+        isPrivateNetwork(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      console.log(`CORS blocked origin: ${origin}`);
+      // 对于开发和调试，我们可以更宽松一些
+      callback(null, true);  // 临时允许所有来源，便于调试
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true // 如果需要发送cookies的话
 }));
 app.use(helmet({
-  contentSecurityPolicy: false, // 在开发阶段可能需要禁用CSP
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https:"],
+      imgSrc: ["'self'", "data:", "https:", "http://localhost", "http://127.0.0.1", "http://10.55.131.77"],
+      fontSrc: ["'self'", "https:", "data:"],
+      connectSrc: ["'self'", "http://localhost", "http://localhost:80", "http://localhost:3000", "http://127.0.0.1", "http://127.0.0.1:80", "http://127.0.0.1:3000", "http://10.55.131.77", "http://10.55.131.77:80", "http://10.55.131.77:3000"],
+      manifestSrc: ["'self'"],
+      mediaSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      frameSrc: ["'self'"],
+      workerSrc: ["'self'", "blob:"],
+      childSrc: ["'self'", "blob:"],
+      upgradeInsecureRequests: null  // 禁用自动HTTPS升级
+    }
+  },
+  crossOriginResourcePolicy: { policy: "cross-origin" },  // 放宽跨域资源策略
+  crossOriginOpenerPolicy: false,  // 禁用 Cross-Origin-Opener-Policy，避免HTTP下的警告
+  crossOriginEmbedderPolicy: false,  // 禁用 Cross-Origin-Embedder-Policy
+  originAgentCluster: false,  // 禁用 Origin-Agent-Cluster
+  hsts: false  // 在开发/测试环境禁用 HSTS
 }));
-app.use(helmet());
 app.use(morgan('dev'));
 app.use(express.json());
 
@@ -56,10 +115,53 @@ app.use((req, res, next) => {
   next();
 });
 
+// 静态资源中间件 - 防止HTTPS重定向
+app.use((req, res, next) => {
+  // 移除可能导致HTTPS升级的头信息
+  res.removeHeader('Strict-Transport-Security');
+  res.removeHeader('upgrade-insecure-requests');
+  
+  // 对于静态资源，确保正确的CORS头
+  if (req.url.match(/\.(css|js|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot)$/)) {
+    res.set({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+      'Cross-Origin-Resource-Policy': 'cross-origin',
+      'Cache-Control': 'public, max-age=86400'
+    });
+  }
+  
+  next();
+});
+
 // API 路由 - 移到最前面
 app.use('/api/users', userRoutes);
 app.use('/api/http', httpRoutes);
 app.use('/api/files', fileRoutes);
+
+// 专门处理 favicon.ico 路由
+app.get('/favicon.ico', (req, res) => {
+  const faviconPath = isProduction 
+    ? path.join(__dirname, '..', 'favicon.ico')  // dist/favicon.ico
+    : path.join(__dirname, '..', 'public', 'favicon.ico');  // public/favicon.ico
+  
+  res.set({
+    'Content-Type': 'image/x-icon',
+    'Cache-Control': 'public, max-age=86400',  // 缓存1天
+    'Access-Control-Allow-Origin': '*',  // 允许跨域访问favicon
+    'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Requested-With',
+    'Cross-Origin-Resource-Policy': 'cross-origin',
+    'Vary': 'Origin'  // 告诉缓存根据Origin头进行变化
+  });
+  
+  res.sendFile(faviconPath, (err) => {
+    if (err) {
+      console.log('Favicon not found:', faviconPath);
+      res.status(404).end();
+    }
+  });
+});
 
 // 健康检查端点
 app.get('/api/health', (req, res) => {
@@ -110,14 +212,30 @@ import fs from 'fs';
 if (!fs.existsSync(publicPath)) fs.mkdirSync(publicPath, { recursive: true });
 if (!fs.existsSync(tempsPath)) fs.mkdirSync(tempsPath, { recursive: true });
 
-// 静态文件服务
-app.use(express.static(publicPath));
-app.use("/temps", express.static(tempsPath));
-
 // Vue 前端静态文件服务 (生产环境)
 if (isProduction) {
   // 在生产环境下，静态文件在 dist 目录（上一级目录）
-  app.use(express.static(path.join(__dirname, '..')));
+  app.use(express.static(path.join(__dirname, '..'), {
+    setHeaders: (res, path, stat) => {
+      // 为所有静态文件设置CORS和缓存头
+      res.set({
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Cross-Origin-Resource-Policy': 'cross-origin',
+        'Cache-Control': 'public, max-age=86400'
+      });
+      
+      // 特别处理CSS和JS文件
+      if (path.match(/\.(css|js)$/)) {
+        res.set({
+          'Content-Security-Policy': 'default-src \'self\' http: data: blob:',
+          'X-Content-Type-Options': 'nosniff'
+        });
+      }
+    }
+  }));
+  // temps 目录服务
+  app.use("/temps", express.static(tempsPath));
   
   // 处理 SPA 路由 - 所有非 API 路由都返回 index.html
   app.get('*', (req, res, next) => {
@@ -125,19 +243,32 @@ if (isProduction) {
     if (req.path.startsWith('/api/') || req.path.startsWith('/webdav/')) {
       return next();
     }
+    
+    // 为 SPA 路由设置正确的头信息
+    res.set({
+      'Content-Type': 'text/html; charset=UTF-8',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Access-Control-Allow-Origin': '*',
+      'Cross-Origin-Resource-Policy': 'cross-origin'
+    });
+    
     res.sendFile(path.join(__dirname, '..', 'index.html'));
   });
 } else {
+  // 开发环境的静态文件服务
+  app.use(express.static(publicPath));
+  app.use("/temps", express.static(tempsPath));
+  
   // 开发环境下的路由处理
   app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, "server", "public", "index.html"));
+    res.sendFile(path.join(__dirname, "public", "index.html"));
   });
 }
 
 app.get("/script.js", (req, res) => {
     const scriptPath = isProduction 
       ? path.join(__dirname, "script.js")
-      : path.join(__dirname, "server", "public", "script.js");
+      : path.join(__dirname, "public", "script.js");
     res.sendFile(scriptPath, {
       headers: {
         "Content-Type": "application/javascript",

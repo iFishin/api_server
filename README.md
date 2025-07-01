@@ -1,12 +1,31 @@
 # 🚀 API_Server - All-in-One Development Platform
 
-[![Build Status](https://github.com/你的用户名/api_server/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/你的用户名/api_server/actions)
+[![Build Status](https://github.com/ifishine/api_server/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/ifishine/api_server/actions)
 [![Docker](https://img.shields.io/badge/docker-supported-blue.svg)](https://hub.docker.com/)
 [![Vue 3](https://img.shields.io/badge/vue-3.x-green.svg)](https://vuejs.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.x-blue.svg)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/node.js-18+-green.svg)](https://nodejs.org/)
 
 现代化的全栈开发平台，集成多协议API测试、工具集、文档管理于一体。采用Vue3 + TypeScript + Node.js技术栈，提供美观的用户界面和强大的后端服务。
+
+## 📚 文档导航
+
+### 📖 使用指南
+- [🚀 运行指南](docs/guides/RUN-GUIDE.md) - 项目启动和使用教程
+- [💻 运行示例](docs/guides/RUN-EXAMPLES.md) - 快速开始示例
+- [🌐 局域网访问指南](docs/guides/LAN-ACCESS-GUIDE.md) - 网络配置和故障排查
+- [🔧 端口部署指南](docs/guides/PORTS-DEPLOYMENT.md) - 端口配置和生产部署
+- [🚁 部署指南](docs/guides/DEPLOYMENT.md) - 详细部署说明
+
+### 🛠️ 开发文档
+- [🤝 贡献指南](docs/development/CONTRIBUTING.md) - 如何参与项目开发
+- [📝 更新日志](docs/development/CHANGELOG.md) - 版本更新记录
+- [🧪 测试构建](docs/development/TEST-BUILD.md) - 测试和构建说明
+- [🔧 CORS修复信息](docs/development/cors-fix-info.md) - 跨域问题解决方案
+
+### 📊 项目报告
+- [📋 项目概览](docs/reports/PROJECT-SUMMARY.md) - 项目功能和架构总结
+- [🧹 文件清理报告](docs/reports/FILE-CLEANUP-REPORT.md) - 项目优化和清理记录
 
 ## ✨ 特性
 
@@ -378,7 +397,7 @@ node diagnose.js          # 环境诊断
 ./deploy.sh              # 交互式部署
 ```
 
-## �🚧 故障排除
+## 🚧 故障排除
 
 ### 常见问题
 
@@ -397,7 +416,14 @@ node diagnose.js          # 环境诊断
    HTTP_PORT=4000 npm run dev
    ```
 
-2. **Docker容器无法启动**
+2. **局域网访问问题**
+   ```bash
+   # 运行网络诊断脚本
+   ./diagnose-lan.sh
+   ```
+   📖 详细解决方案: [局域网访问指南](docs/guides/LAN-ACCESS-GUIDE.md)
+
+3. **Docker容器无法启动**
    ```bash
    # 查看详细日志
    npm run docker:logs
@@ -409,7 +435,7 @@ node diagnose.js          # 环境诊断
    npm run check:docker
    ```
 
-3. **构建失败**
+4. **构建失败**
    ```bash
    # 检查TypeScript错误
    npm run type-check
@@ -421,18 +447,18 @@ node diagnose.js          # 环境诊断
    # 重新构建
    npm run build
    ```
+   📖 详细构建指南: [测试构建文档](docs/development/TEST-BUILD.md)
 
-4. **权限错误**
+5. **文件清理**
    ```bash
-   # 添加执行权限
-   chmod +x deploy.sh
-   chmod +x quick-run-check.js
-   
-   # 使用sudo运行标准端口
-   sudo npm run start:80
+   # 清理冗余JS文件
+   ./cleanup-files.sh
    ```
+   📖 查看清理报告: [文件清理报告](docs/reports/FILE-CLEANUP-REPORT.md)
 
 ## 🤝 贡献指南
+
+欢迎参与项目开发！请查看 [贡献指南](docs/development/CONTRIBUTING.md) 了解详细信息。
 
 1. Fork 本项目
 2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
@@ -442,8 +468,19 @@ node diagnose.js          # 环境诊断
 
 ## 📝 更新日志
 
-### v1.0.0 (2025-01-01)
-- ✨ 初始版本发布
+查看完整的 [更新日志](docs/development/CHANGELOG.md) 了解版本历史。
+
+### 最新版本亮点
+- ✨ 支持局域网访问和CORS配置优化
+- 🧹 文件结构清理，减少97%冗余JS文件
+- 📊 新增项目诊断和监控脚本
+- 🎨 优化Vite构建配置，启用代码分割
+
+## 📖 更多文档
+
+- 📋 [项目概览](docs/reports/PROJECT-SUMMARY.md) - 完整的功能说明
+- 🚀 [运行示例](docs/guides/RUN-EXAMPLES.md) - 详细的使用示例
+- 🔧 [部署指南](docs/guides/DEPLOYMENT.md) - 生产环境部署
 - 🎨 美观的绿白配色主题
 - 🔧 完整的前后端分离架构
 - 📦 Docker容器化支持

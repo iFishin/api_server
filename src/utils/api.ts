@@ -6,23 +6,20 @@ const getApiBaseUrl = (): string => {
   
   console.log('Current location:', { protocol, hostname, port });
   
-  // 开发环境端口映射
-  let backendPort = '3000'; // 默认后端端口
-  
-  // 根据前端端口确定后端端口
+  // 根据当前环境动态确定API地址
   if (port === '5173') {
-    // Vite 开发服务器
-    backendPort = '3000'; // 对应您的后端HTTP端口
+    // Vite 开发服务器 - 使用代理或直接连接后端
+    return 'http://localhost:3000';
   } else if (port === '8080') {
     // Vue CLI 开发服务器
-    backendPort = '3000';
+    return 'http://localhost:3000';
+  } else if (port === '80' || port === '' || !port) {
+    // 生产环境 - 80端口，API和前端在同一服务器同一端口
+    return `${protocol}//${hostname}`;
+  } else {
+    // 其他情况，默认使用3000端口
+    return `http://${hostname}:3000`;
   }
-  
-  // 强制使用 HTTP 协议连接后端（因为后端运行在HTTP上）
-  const apiUrl = `http://${hostname}:${backendPort}`;
-  
-  console.log('API Base URL:', apiUrl);
-  return apiUrl;
 };
 
 // 创建 axios 实例

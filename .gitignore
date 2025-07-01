@@ -28,3 +28,13 @@ coverage
 *.sw?
 
 *.tsbuildinfo
+
+# 防止意外生成的JS文件被提交
+src/**/*.vue.js
+src/**/*.ts.js
+src/components/**/*.js
+src/views/**/*.js
+src/router/*.js
+src/store/*.js
+src/utils/*.js
+!src/main.js

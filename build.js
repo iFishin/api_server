@@ -82,7 +82,7 @@ try {
   };
   
   // 复制 server 静态资源
-  ['certs', 'public', 'temps'].forEach(dir => {
+  ['certs', 'temps'].forEach(dir => {
     const srcPath = `server/${dir}`;
     if (fs.existsSync(srcPath)) {
       copyServerAssets(srcPath, `dist/server/${dir}`);

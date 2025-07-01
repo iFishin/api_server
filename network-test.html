@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>网络连接测试</title>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background: #d4edda; }
+        .error { background: #f8d7da; }
+        .info { background: #d1ecf1; }
+    </style>
+</head>
+<body>
+    <h1>🔍 API_Server 网络连接诊断</h1>
+    
+    <div class="test info">
+        <h3>基本信息</h3>
+        <p>当前访问地址: <span id="currentUrl"></span></p>
+        <p>用户代理: <span id="userAgent"></span></p>
+        <p>时间: <span id="currentTime"></span></p>
+    </div>
+
+    <div class="test" id="apiTest">
+        <h3>API 连接测试</h3>
+        <p>状态: <span id="apiStatus">测试中...</span></p>
+        <p>响应: <span id="apiResponse"></span></p>
+    </div>
+
+    <div class="test" id="faviconTest">
+        <h3>Favicon 加载测试</h3>
+        <p>状态: <span id="faviconStatus">测试中...</span></p>
+        <img src="/favicon.ico" style="width: 16px; height: 16px;" onload="faviconLoaded()" onerror="faviconError()">
+    </div>
+
+    <div class="test" id="staticTest">
+        <h3>静态资源测试</h3>
+        <p>状态: <span id="staticStatus">测试中...</span></p>
+    </div>
+
+    <div class="test info">
+        <h3>网络建议</h3>
+        <ul>
+            <li>确保设备在同一局域网 (10.55.131.x)</li>
+            <li>检查企业防火墙设置</li>
+            <li>尝试禁用浏览器扩展</li>
+            <li>清除浏览器缓存</li>
+        </ul>
+    </div>
+
+    <script>
+        // 显示基本信息
+        document.getElementById('currentUrl').textContent = window.location.href;
+        document.getElementById('userAgent').textContent = navigator.userAgent;
+        document.getElementById('currentTime').textContent = new Date().toLocaleString();
+
+        // 测试 API 连接
+        fetch('/api/health')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('apiStatus').textContent = '✅ 成功';
+                document.getElementById('apiResponse').textContent = JSON.stringify(data);
+                document.getElementById('apiTest').className = 'test success';
+            })
+            .catch(error => {
+                document.getElementById('apiStatus').textContent = '❌ 失败';
+                document.getElementById('apiResponse').textContent = error.message;
+                document.getElementById('apiTest').className = 'test error';
+            });
+
+        // Favicon 测试函数
+        function faviconLoaded() {
+            document.getElementById('faviconStatus').textContent = '✅ 成功';
+            document.getElementById('faviconTest').className = 'test success';
+        }
+
+        function faviconError() {
+            document.getElementById('faviconStatus').textContent = '❌ 失败';
+            document.getElementById('faviconTest').className = 'test error';
+        }
+
+        // 测试静态资源
+        const testImg = new Image();
+        testImg.onload = function() {
+            document.getElementById('staticStatus').textContent = '✅ CSS 加载成功';
+            document.getElementById('staticTest').className = 'test success';
+        };
+        testImg.onerror = function() {
+            document.getElementById('staticStatus').textContent = '❌ 静态资源加载失败';
+            document.getElementById('staticTest').className = 'test error';
+        };
+        
+        // 尝试加载一个小的 CSS 文件来测试
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = '/assets/monaco-editor-C0ykYQ3K.css';
+        link.onload = function() {
+            document.getElementById('staticStatus').textContent = '✅ 静态资源加载成功';
+            document.getElementById('staticTest').className = 'test success';
+        };
+        link.onerror = function() {
+            document.getElementById('staticStatus').textContent = '❌ 静态资源加载失败';
+            document.getElementById('staticTest').className = 'test error';
+        };
+        document.head.appendChild(link);
+
+        // 5秒后如果还在测试状态，标记为超时
+        setTimeout(() => {
+            if (document.getElementById('faviconStatus').textContent === '测试中...') {
+                document.getElementById('faviconStatus').textContent = '⏰ 超时';
+                document.getElementById('faviconTest').className = 'test error';
+            }
+            if (document.getElementById('staticStatus').textContent === '测试中...') {
+                document.getElementById('staticStatus').textContent = '⏰ 超时';
+                document.getElementById('staticTest').className = 'test error';
+            }
+        }, 5000);
+    </script>
+</body>
+</html>

@@ -81,7 +81,7 @@ nav {
   min-width: 0;
   margin: 0 auto;
   box-sizing: border-box;
-  padding: 0.5rem 0;
+  padding: 0 0;
   gap: 0rem;
   min-height: 0;
   flex-grow: 1;
