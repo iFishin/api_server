@@ -184,14 +184,13 @@
         </div>
 
         <!-- 空状态显示 -->
-        <div v-else-if="activeCategory && filteredTools.length === 0" class="empty-state">
-          <div class="empty-icon">
-            <i class="fas fa-search"></i>
-          </div>
-          <h3>No tools found</h3>
-          <p>No tools available for the "{{ getCurrentCategoryName() }}" category yet.</p>
-          <p class="coming-soon">More tools coming soon!</p>
-        </div>
+        <EmptyPage 
+          v-else-if="activeCategory && filteredTools.length === 0"
+          icon="fas fa-search"
+          title="No tools found"
+          :description="`No tools available for the &quot;${getCurrentCategoryName()}&quot; category yet.`"
+          coming-soon="More tools coming soon!"
+        />
   
         <!-- 工具内容区域 -->
         <div v-if="activeTool" class="tool-content">
@@ -239,6 +238,9 @@
   import { ref, computed, onMounted, watch } from 'vue';
   import { useStore } from 'vuex';
   import { useRoute, useRouter } from 'vue-router';
+  
+  // 导入页面组件
+  import EmptyPage from '../components/pages/emptyPage.vue';
   
   // 导入工具组件
   import JsonFormatter from '../components/tools/JsonFormatter.vue';
@@ -496,7 +498,6 @@
   .toolkit-view {
     width: 100%;
     border-radius: 12px;
-    min-height: 100vh;
     background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 50%, #f0fdf4 100%);
   }
 
@@ -976,8 +977,8 @@
   
   .toolkit-container {
     width: 100%;
+    min-height: 0;
     margin: 0 auto;
-    padding: 0 1.5rem 2rem;
   }
 
   /* 分类导航 */
@@ -1343,50 +1344,6 @@
     font-weight: 600;
   }
 
-  /* 空状态样式 */
-  .empty-state {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 4rem 2rem;
-    background: #fff;
-    border-radius: 16px;
-    border: 2px dashed #e2e8f0;
-    margin: 2rem 0;
-  }
-
-  .empty-icon {
-    width: 80px;
-    height: 80px;
-    background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 1.5rem;
-  }
-
-  .empty-icon i {
-    font-size: 2rem;
-    color: #64748b;
-  }
-
-  .empty-state h3 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1.5rem;
-    color: #475569;
-    font-weight: 600;
-  }
-
-  .empty-state p {
-    margin: 0 0 0.5rem 0;
-    color: #64748b;
-    font-size: 1rem;
-  }
-  
   /* 响应式设计 */
   /* 响应式设计 */
   @media (min-width: 1400px) {

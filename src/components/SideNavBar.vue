@@ -65,8 +65,11 @@ export default defineComponent({
                     ];
                 case 'tcp_udp':
                     return store?.state.tcpUdpCategories || [
-                        { id: 'tcp', name: 'TCP Services', icon: 'fas fa-network-wired', path: '/tcp_udp?category=tcp' },
-                        { id: 'udp', name: 'UDP Services', icon: 'fas fa-broadcast-tower', path: '/tcp_udp?category=udp' }
+                        { id: 'overview', name: 'Overview', icon: 'fas fa-tachometer-alt', path: '/tcp_udp?category=overview' },
+                        { id: 'tcp', name: 'TCP Debug', icon: 'fas fa-plug', path: '/tcp_udp?category=tcp' },
+                        { id: 'udp', name: 'UDP Debug', icon: 'fas fa-broadcast-tower', path: '/tcp_udp?category=udp' },
+                        { id: 'monitor', name: 'Real-time Monitor', icon: 'fas fa-chart-line', path: '/tcp_udp?category=monitor' },
+                        { id: 'history', name: 'Message History', icon: 'fas fa-history', path: '/tcp_udp?category=history' }
                     ];
                 case 'users':
                     return store?.state.userCategories || [

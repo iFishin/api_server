@@ -29,7 +29,7 @@ const route = useRoute();
 // 路由配置 - 定义哪些页面需要显示侧边栏和API文档
 const routeConfig = {
   sidebar: ['users', 'http', 'mqtt', 'tcp_udp', 'toolkit', 'webdav'],
-  apiDoc: ['users', 'http', 'mqtt', 'tcp_udp']
+  apiDoc: ['http']
 };
 
 const showApiDoc = computed(() => {

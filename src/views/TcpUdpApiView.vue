@@ -1,139 +1,392 @@
 <template>
-  <div class="tcpudp-view" :class="{ 'dark-theme': isDarkMode }">
-    <!-- Theme Toggle -->
-    <div class="theme-toggle">
-      <button @click="toggleTheme" class="theme-btn" :title="isDarkMode ? '切换到浅色主题' : '切换到深色主题'">
-        <span v-if="isDarkMode">🌞</span>
-        <span v-else>🌙</span>
-      </button>
-    </div>
-
-    <!-- 添加实时监控面板 -->
-    <div class="real-time-monitor" v-if="!isLoading">
-      <div class="monitor-header">
-        <h3>📈 实时监控</h3>
-        <div class="monitor-controls">
-          <button @click="toggleAutoRefresh" class="monitor-btn" :class="{ active: autoRefresh }">
-            <span>{{ autoRefresh ? '⏸️' : '▶️' }}</span>
-            {{ autoRefresh ? '暂停' : '开始' }}
-          </button>
-          <span class="refresh-interval">{{ refreshInterval / 1000 }}秒刷新</span>
+  <div class="tcpudp-view">
+    <!-- 页面头部 -->
+    <div class="tcpudp-header">
+      <!-- 背景装饰 -->
+      <div class="header-background">
+        <div class="bg-pattern"></div>
+        <div class="floating-icons">
+          <div class="float-icon" style="--delay: 0s; --x: 10%; --y: 20%;">
+            <i class="fas fa-network-wired"></i>
+          </div>
+          <div class="float-icon" style="--delay: 1s; --x: 85%; --y: 30%;">
+            <i class="fas fa-server"></i>
+          </div>
+          <div class="float-icon" style="--delay: 2s; --x: 20%; --y: 70%;">
+            <i class="fas fa-wifi"></i>
+          </div>
+          <div class="float-icon" style="--delay: 3s; --x: 75%; --y: 60%;">
+            <i class="fas fa-exchange-alt"></i>
+          </div>
+          <div class="float-icon" style="--delay: 4s; --x: 50%; --y: 15%;">
+            <i class="fas fa-broadcast-tower"></i>
+          </div>
         </div>
       </div>
       
-      <div class="monitor-grid">
-        <div class="monitor-card">
-          <div class="monitor-icon">📊</div>
-          <div class="monitor-data">
-            <div class="monitor-value">{{ messageHistory.length }}</div>
-            <div class="monitor-label">总消息数</div>
+      <!-- 主要内容 -->
+      <div class="header-content">
+        <div class="header-main">
+          <div class="header-info">
+            <div class="title-section">
+              <div class="title-icon">
+                <i class="fas fa-network-wired"></i>
+                <div class="icon-glow"></div>
+              </div>
+              <div class="title-content">
+                <h1 class="main-title">
+                  <span class="title-gradient">Network</span>
+                  <span class="title-normal">Services</span>
+                </h1>
+                <div class="title-underline"></div>
+              </div>
+            </div>
+            <p class="subtitle">
+              <i class="fas fa-star subtitle-icon"></i>
+              Real-time TCP & UDP Network Service Monitoring Dashboard
+            </p>
+            <div class="feature-badges">
+              <span class="feature-badge">
+                <i class="fas fa-bolt"></i>
+                Real-time Monitoring
+              </span>
+              <span class="feature-badge">
+                <i class="fas fa-shield-alt"></i>
+                Reliable Connection
+              </span>
+              <span class="feature-badge">
+                <i class="fas fa-tachometer-alt"></i>
+                High Performance
+              </span>
+            </div>
+          </div>
+          
+          <div class="header-stats">
+            <div class="stats-container">
+              <div class="stat-item">
+                <div class="stat-icon">
+                  <i class="fas fa-users"></i>
+                  <div class="stat-pulse"></div>
+                </div>
+                <div class="stat-content">
+                  <span class="stat-number">{{ tcpClients.length }}</span>
+                  <span class="stat-label">TCP Clients</span>
+                </div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-icon">
+                  <i class="fas fa-comments"></i>
+                  <div class="stat-pulse"></div>
+                </div>
+                <div class="stat-content">
+                  <span class="stat-number">{{ messageHistory.length }}</span>
+                  <span class="stat-label">Messages</span>
+                </div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-icon">
+                  <i class="fas fa-server"></i>
+                  <div class="stat-pulse"></div>
+                </div>
+                <div class="stat-content">
+                  <span class="stat-number">{{ tcpStatus && udpStatus ? '2' : tcpStatus || udpStatus ? '1' : '0' }}</span>
+                  <span class="stat-label">Active Services</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         
-        <div class="monitor-card">
-          <div class="monitor-icon">⚡</div>
-          <div class="monitor-data">
-            <div class="monitor-value">{{ messagesPerMinute }}</div>
-            <div class="monitor-label">消息/分钟</div>
+        <!-- 服务状态快览 -->
+        <div class="services-overview">
+          <div class="overview-title">
+            <i class="fas fa-server"></i>
+            Services Status
+          </div>
+          <div class="services-status-grid">
+            <div class="service-status-card" :class="{ active: tcpStatus }">
+              <div class="service-status-header">
+                <div class="service-status-icon">
+                  <i class="fas fa-plug"></i>
+                </div>
+                <div class="service-status-info">
+                  <h4>TCP Server</h4>
+                  <span class="service-port">Port 9001</span>
+                </div>
+                <div class="service-status-indicator">
+                  <div class="status-dot" :class="{ online: tcpStatus, offline: !tcpStatus }"></div>
+                  <span class="status-text">{{ tcpStatus ? 'Online' : 'Offline' }}</span>
+                </div>
+              </div>
+              <div class="service-stats-row">
+                <div class="stat-box">
+                  <span class="stat-number">{{ tcpClients.length }}</span>
+                  <span class="stat-label">Clients</span>
+                </div>
+                <div class="stat-box">
+                  <span class="stat-number">{{ messageHistory.filter(m => m.type.toLowerCase() === 'tcp').length }}</span>
+                  <span class="stat-label">Messages</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="service-status-card" :class="{ active: udpStatus }">
+              <div class="service-status-header">
+                <div class="service-status-icon">
+                  <i class="fas fa-broadcast-tower"></i>
+                </div>
+                <div class="service-status-info">
+                  <h4>UDP Server</h4>
+                  <span class="service-port">Port 9000</span>
+                </div>
+                <div class="service-status-indicator">
+                  <div class="status-dot" :class="{ online: udpStatus, offline: !udpStatus }"></div>
+                  <span class="status-text">{{ udpStatus ? 'Online' : 'Offline' }}</span>
+                </div>
+              </div>
+              <div class="service-stats-row">
+                <div class="stat-box">
+                  <span class="stat-number">{{ udpMessagesCount }}</span>
+                  <span class="stat-label">Messages</span>
+                </div>
+                <div class="stat-box">
+                  <span class="stat-number">{{ messagesPerMinute }}</span>
+                  <span class="stat-label">Per Min</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        
-        <div class="monitor-card">
-          <div class="monitor-icon">🔗</div>
-          <div class="monitor-data">
-            <div class="monitor-value">{{ tcpClients.length }}</div>
-            <div class="monitor-label">TCP连接</div>
+
+        <!-- 实时监控面板 -->
+        <div class="monitor-panel">
+          <div class="monitor-header">
+            <div class="monitor-title">
+              <div class="monitor-title-icon">
+                <i class="fas fa-chart-line"></i>
+                <div class="title-pulse"></div>
+              </div>
+              <h3>Real-time Monitor</h3>
+            </div>
+            <div class="monitor-controls">
+              <button @click="toggleAutoRefresh" class="control-btn" :class="{ active: autoRefresh }">
+                <i class="btn-icon" :class="autoRefresh ? 'fas fa-pause' : 'fas fa-play'"></i>
+                <span class="btn-text">{{ autoRefresh ? 'Pause' : 'Start' }}</span>
+              </button>
+              <div class="refresh-info">
+                <i class="fas fa-clock"></i>
+                <span>{{ refreshInterval / 1000 }}s</span>
+              </div>
+            </div>
           </div>
-        </div>
-        
-        <div class="monitor-card">
-          <div class="monitor-icon">📡</div>
-          <div class="monitor-data">
-            <div class="monitor-value">{{ udpMessagesCount }}</div>
-            <div class="monitor-label">UDP消息</div>
+          <div class="monitor-metrics">
+            <div class="metric-card">
+              <div class="metric-icon">
+                <i class="fas fa-chart-bar"></i>
+                <div class="metric-glow"></div>
+              </div>
+              <div class="metric-content">
+                <div class="metric-value">{{ messageHistory.length }}</div>
+                <div class="metric-label">Total Messages</div>
+                <div class="metric-trend">
+                  <i class="fas fa-arrow-up"></i>
+                  <span>+{{ messagesPerMinute }}/min</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="metric-card">
+              <div class="metric-icon">
+                <i class="fas fa-tachometer-alt"></i>
+                <div class="metric-glow"></div>
+              </div>
+              <div class="metric-content">
+                <div class="metric-value">{{ messagesPerMinute }}</div>
+                <div class="metric-label">Messages/min</div>
+                <div class="metric-trend">
+                  <i class="fas fa-bolt"></i>
+                  <span>Real-time</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="metric-card">
+              <div class="metric-icon">
+                <i class="fas fa-link"></i>
+                <div class="metric-glow"></div>
+              </div>
+              <div class="metric-content">
+                <div class="metric-value">{{ tcpClients.length }}</div>
+                <div class="metric-label">TCP Connections</div>
+                <div class="metric-trend">
+                  <i class="fas fa-wifi" :class="{ 'text-success': tcpStatus, 'text-danger': !tcpStatus }"></i>
+                  <span>{{ tcpStatus ? 'Active' : 'Inactive' }}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="metric-card">
+              <div class="metric-icon">
+                <i class="fas fa-satellite-dish"></i>
+                <div class="metric-glow"></div>
+              </div>
+              <div class="metric-content">
+                <div class="metric-value">{{ udpMessagesCount }}</div>
+                <div class="metric-label">UDP Messages</div>
+                <div class="metric-trend">
+                  <i class="fas fa-broadcast-tower" :class="{ 'text-success': udpStatus, 'text-danger': !udpStatus }"></i>
+                  <span>{{ udpStatus ? 'Broadcasting' : 'Stopped' }}</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Loading Overlay -->
-    <div v-if="isLoading" class="loading-overlay">
-      <div class="loading-content">
-        <LoadingSpinner />
-        <p>正在加载服务状态...</p>
-      </div>
-    </div>
+    <!-- Loading Component -->
+    <LoadingPage 
+      v-if="isLoading"
+      icon="fas fa-network-wired"
+      title="Initializing Network Services"
+      description="Loading service status and connection information..."
+      :show-progress="true"
+      progress-text="Loading..."
+    />
 
     <!-- Messages -->
     <div v-if="error" class="message error-message">
-      <span class="message-icon">⚠️</span>
+      <i class="fas fa-exclamation-triangle message-icon"></i>
       {{ error }}
-      <button @click="error = ''" class="message-close">✕</button>
+      <button @click="error = ''" class="message-close">
+        <i class="fas fa-times"></i>
+      </button>
     </div>
     
     <div v-if="successMessage" class="message success-message">
-      <span class="message-icon">✅</span>
+      <i class="fas fa-check-circle message-icon"></i>
       {{ successMessage }}
-      <button @click="successMessage = ''" class="message-close">✕</button>
-    </div>    <!-- Control Panel -->
-    <div class="control-panel" v-if="!isLoading">
+      <button @click="successMessage = ''" class="message-close">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <!-- 主内容容器 -->
+    <div class="main-container">
+      <!-- Control Panel -->
+      <div class="control-panel" v-if="!isLoading">
       <div class="panel-section">
         <div class="section-header">
-          <h3>🎛️ 服务控制中心</h3>
+          <div class="header-left">
+            <div class="header-icon">
+              <i class="fas fa-cogs"></i>
+              <div class="icon-sparkle"></div>
+            </div>
+            <div class="header-content">
+              <h3>Network Control Center</h3>
+              <p>Manage and monitor network services</p>
+            </div>
+          </div>
           <div class="stats-display">
-            <span class="stat-chip">
-              <span class="stat-icon">🔗</span>
-              {{ tcpClients.length }} TCP连接
-            </span>
-            <span class="stat-chip">
-              <span class="stat-icon">📡</span>
-              {{ messageHistory.length }} 消息
-            </span>
-            <span class="stat-chip">
-              <span class="stat-icon">⚡</span>
-              {{ tcpStatus && udpStatus ? '2' : tcpStatus || udpStatus ? '1' : '0' }} 活跃服务
-            </span>
-            <!-- 添加导出按钮 -->
+            <div class="stat-chip stat-chip-primary">
+              <i class="fas fa-plug"></i>
+              <span class="stat-value">{{ tcpClients.length }}</span>
+              <span class="stat-label">TCP Connections</span>
+            </div>
+            <div class="stat-chip stat-chip-success">
+              <i class="fas fa-envelope"></i>
+              <span class="stat-value">{{ messageHistory.length }}</span>
+              <span class="stat-label">Total Messages</span>
+            </div>
+            <div class="stat-chip stat-chip-info">
+              <i class="fas fa-server"></i>
+              <span class="stat-value">{{ tcpStatus && udpStatus ? '2' : tcpStatus || udpStatus ? '1' : '0' }}</span>
+              <span class="stat-label">Active Services</span>
+            </div>
             <button @click="exportData" class="export-btn" :disabled="messageHistory.length === 0">
-              <span>💾 导出数据</span>
+              <i class="fas fa-download"></i>
+              <span>Export Data</span>
             </button>
           </div>
         </div>
         
         <div class="service-toggles">
-          <div class="service-toggle">
-            <div class="toggle-info">
+          <div class="service-toggle service-toggle-tcp" :class="{ active: tcpStatus }">
+            <div class="toggle-header">
               <div class="toggle-icon-wrapper">
-                <span class="toggle-icon">🔗</span>
+                <i class="fas fa-plug toggle-icon"></i>
                 <div class="connection-pulse" :class="{ active: tcpStatus }"></div>
               </div>
               <div class="toggle-details">
-                <div class="toggle-title">TCP 服务器</div>
-                <div class="toggle-desc">端口 9001 · 可靠传输</div>
+                <div class="toggle-title">TCP Server</div>
+                <div class="toggle-desc">Port 9001 • Reliable Transport</div>
+              </div>
+              <div class="toggle-status" :class="{ online: tcpStatus, offline: !tcpStatus }">
+                <div class="status-indicator"></div>
+                <span class="status-text">{{ tcpStatus ? 'Online' : 'Offline' }}</span>
               </div>
             </div>
-            <div class="toggle-status" :class="getConnectionStatusClass(tcpStatus)">
-              <span class="status-indicator"></span>
-              <span class="status-text">{{ getConnectionStatusText(tcpStatus) }}</span>
+            <div class="toggle-content">
+              <div class="service-metrics">
+                <div class="metric-item">
+                  <span class="metric-value">{{ tcpClients.length }}</span>
+                  <span class="metric-label">Active Clients</span>
+                </div>
+                <div class="metric-item">
+                  <span class="metric-value">{{ messageHistory.filter(m => m.type.toLowerCase() === 'tcp').length }}</span>
+                  <span class="metric-label">Messages Sent</span>
+                </div>
+                <div class="metric-item">
+                  <span class="metric-value">9001</span>
+                  <span class="metric-label">Port</span>
+                </div>
+              </div>
+              <div class="toggle-actions">
+                <button @click="handleTcpToggle" class="action-btn" :class="{ active: tcpStatus }">
+                  <i :class="tcpStatus ? 'fas fa-stop' : 'fas fa-play'"></i>
+                  {{ tcpStatus ? 'Stop Server' : 'Start Server' }}
+                </button>
+              </div>
             </div>
           </div>
-          
-          <div class="service-toggle">
-            <div class="toggle-info">
+
+          <div class="service-toggle service-toggle-udp" :class="{ active: udpStatus }">
+            <div class="toggle-header">
               <div class="toggle-icon-wrapper">
-                <span class="toggle-icon">📡</span>
+                <i class="fas fa-broadcast-tower toggle-icon"></i>
                 <div class="connection-pulse" :class="{ active: udpStatus }"></div>
               </div>
               <div class="toggle-details">
-                <div class="toggle-title">UDP 服务器</div>
-                <div class="toggle-desc">端口 9000 · 快速传输</div>
+                <div class="toggle-title">UDP Server</div>
+                <div class="toggle-desc">Port 9000 • Fast Broadcast</div>
+              </div>
+              <div class="toggle-status" :class="{ online: udpStatus, offline: !udpStatus }">
+                <div class="status-indicator"></div>
+                <span class="status-text">{{ udpStatus ? 'Broadcasting' : 'Stopped' }}</span>
               </div>
             </div>
-            <div class="toggle-status" :class="getConnectionStatusClass(udpStatus)">
-              <span class="status-indicator"></span>
-              <span class="status-text">{{ getConnectionStatusText(udpStatus) }}</span>
-            </div>
-          </div>
+            <div class="toggle-content">
+              <div class="service-metrics">
+                <div class="metric-item">
+                  <span class="metric-value">{{ udpMessagesCount }}</span>
+                  <span class="metric-label">Messages Sent</span>
+                </div>
+                <div class="metric-item">
+                  <span class="metric-value">{{ messagesPerMinute }}</span>
+                  <span class="metric-label">Per Minute</span>
+                </div>
+                <div class="metric-item">
+                  <span class="metric-value">9000</span>
+                  <span class="metric-label">Port</span>
+                </div>
+              </div>
+              <div class="toggle-actions">
+                <button @click="handleUdpToggle" class="action-btn" :class="{ active: udpStatus }">
+                  <i :class="udpStatus ? 'fas fa-stop' : 'fas fa-broadcast-tower'"></i>
+                  {{ udpStatus ? 'Stop Broadcast' : 'Start Broadcast' }}
+                </button>
+              </div>
+            </div>          </div>
         </div>
       </div>
     </div>
@@ -144,7 +397,7 @@
         <div class="service-header">
           <div class="service-info">
             <div class="service-icon-wrapper">
-              <span class="service-icon">🔗</span>
+              <i class="fas fa-plug service-icon"></i>
               <div class="connection-indicator" :class="{ active: tcpStatus }">
                 <div class="pulse-ring"></div>
                 <div class="pulse-dot"></div>
@@ -168,7 +421,7 @@
           </div>
           <div class="service-actions">
             <button class="action-btn refresh-btn" @click="fetchTcpStatus" :disabled="tcpLoading" title="刷新状态">
-              <span v-if="!tcpLoading" class="action-icon">🔄</span>
+              <i v-if="!tcpLoading" class="fas fa-sync-alt action-icon"></i>
               <LoadingSpinner v-else />
             </button>
           </div>
@@ -178,7 +431,10 @@
           <!-- Echo Configuration -->
           <div class="config-section">
             <div class="section-header">
-              <h3>🔧 回显配置</h3>
+              <h3>
+                <i class="fas fa-cogs"></i>
+                回显配置
+              </h3>
               <div class="section-badge">基础设置</div>
             </div>
             
@@ -223,14 +479,17 @@
           <!-- Connected Clients -->
           <div class="clients-section">
             <div class="section-header">
-              <h3>👥 活跃连接</h3>
+              <h3>
+                <i class="fas fa-users"></i>
+                活跃连接
+              </h3>
               <div class="section-badge">{{ tcpClients.length }} 个客户端</div>
             </div>
               <div v-if="tcpClients.length > 0" class="clients-list">
               <div v-for="client in tcpClients" :key="client.id" class="client-card">
                 <div class="client-info">
                   <div class="client-avatar">
-                    <span class="client-icon">💻</span>
+                    <i class="fas fa-desktop client-icon"></i>
                     <div class="online-indicator"></div>
                   </div>
                   <div class="client-details">
@@ -258,7 +517,7 @@
                       :title="tcpSendMsg[client.id]?.trim() ? '发送消息' : '请输入消息内容'"
                     >
                       <LoadingSpinner v-if="tcpLoading" />
-                      <span v-else class="send-icon">📤</span>
+                      <i v-else class="fas fa-paper-plane send-icon"></i>
                     </button>
                   </div>
                 </div>
@@ -267,7 +526,7 @@
             
             <div v-else class="empty-state">
               <div class="empty-illustration">
-                <span class="empty-icon">🔌</span>
+                <i class="fas fa-plug empty-icon"></i>
                 <div class="empty-text">
                   <h4>暂无客户端连接</h4>
                   <p>等待客户端连接到 TCP 服务器</p>
@@ -279,7 +538,10 @@
           <!-- Send as Client -->
           <div class="client-section">
             <div class="section-header">
-              <h3>📨 客户端发送</h3>
+              <h3>
+                <i class="fas fa-paper-plane"></i>
+                客户端发送
+              </h3>
               <div class="section-badge">主动发送</div>
             </div>
             
@@ -336,7 +598,7 @@
         <div class="service-header">
           <div class="service-info">
             <div class="service-icon-wrapper">
-              <span class="service-icon">📡</span>
+              <i class="fas fa-broadcast-tower service-icon"></i>
               <div class="connection-indicator" :class="{ active: udpStatus }">
                 <div class="pulse-ring"></div>
                 <div class="pulse-dot"></div>
@@ -359,7 +621,7 @@
           </div>
           <div class="service-actions">
             <button class="action-btn refresh-btn" @click="fetchUdpStatus" :disabled="udpLoading" title="刷新状态">
-              <span v-if="!udpLoading" class="action-icon">🔄</span>
+              <i v-if="!udpLoading" class="fas fa-sync-alt action-icon"></i>
               <LoadingSpinner v-else />
             </button>
           </div>
@@ -369,7 +631,10 @@
           <!-- Echo Configuration -->
           <div class="config-section">
             <div class="section-header">
-              <h3>🔧 回显配置</h3>
+              <h3>
+                <i class="fas fa-cogs"></i>
+                回显配置
+              </h3>
               <div class="section-badge">基础设置</div>
             </div>
             
@@ -414,7 +679,10 @@
           <!-- Send as Client -->
           <div class="client-section">
             <div class="section-header">
-              <h3>📨 客户端发送</h3>
+              <h3>
+                <i class="fas fa-paper-plane"></i>
+                客户端发送
+              </h3>
               <div class="section-badge">主动发送</div>
             </div>
             
@@ -471,7 +739,10 @@
       <!-- Message History -->
       <div class="history-card">
         <div class="history-header">
-          <h3>📊 消息历史</h3>
+          <h3>
+            <i class="fas fa-chart-line"></i>
+            消息历史
+          </h3>
           <div class="history-actions">
             <div class="filter-controls">
               <select v-model="messageFilter" class="filter-select">
@@ -484,7 +755,8 @@
               </select>
             </div>
             <button class="action-btn clear-btn" @click="clearMessageHistory" :disabled="messageHistory.length === 0">
-              <span>🗑️ 清空</span>
+              <i class="fas fa-trash-alt"></i>
+              清空
             </button>
           </div>
         </div>
@@ -493,7 +765,7 @@
             <div v-for="msg in filteredMessages.slice(0, 20)" :key="msg.id" class="message-item" :class="[msg.type, msg.direction, msg.status]">
               <div class="message-meta">
                 <span class="message-type-badge" :class="msg.type">{{ msg.type.toUpperCase() }}</span>
-                <span class="message-direction" :class="msg.direction">{{ msg.direction === 'in' ? '📥' : '📤' }}</span>
+                <i class="message-direction" :class="`fas ${msg.direction === 'in' ? 'fa-arrow-down' : 'fa-arrow-up'} ${msg.direction}`"></i>
                 <span class="message-time">{{ formatTime(msg.timestamp) }}</span>
               </div>
               <div class="message-content">
@@ -505,45 +777,22 @@
                 <div class="message-text">{{ msg.message }}</div>
               </div>
               <div class="message-status" :class="msg.status">
-                <span v-if="msg.status === 'success'">✅</span>
-                <span v-else>❌</span>
+                <i v-if="msg.status === 'success'" class="fas fa-check-circle text-green-500"></i>
+                <i v-else class="fas fa-times-circle text-red-500"></i>
               </div>
             </div>
           </div>
           <div v-else class="empty-history">
-            <span class="empty-icon">📭</span>
+            <i class="fas fa-inbox empty-icon"></i>
             <p>{{ messageFilter === 'all' ? '暂无消息记录' : '暂无符合条件的消息' }}</p>
           </div>
         </div>
       </div>
     </div>
-
-    <!-- 添加快捷键提示 -->
-    <div class="shortcuts-panel" v-if="showShortcuts">
-      <div class="shortcuts-content">
-        <h4>⌨️ 快捷键</h4>
-        <div class="shortcut-list">
-          <div class="shortcut-item">
-            <kbd>Ctrl</kbd> + <kbd>Enter</kbd> - 快速发送消息
-          </div>
-          <div class="shortcut-item">
-            <kbd>Ctrl</kbd> + <kbd>R</kbd> - 刷新状态
-          </div>
-          <div class="shortcut-item">
-            <kbd>Ctrl</kbd> + <kbd>E</kbd> - 导出数据
-          </div>
-          <div class="shortcut-item">
-            <kbd>Ctrl</kbd> + <kbd>T</kbd> - 切换主题
-          </div>
-        </div>
-        <button @click="showShortcuts = false" class="close-shortcuts">关闭</button>
-      </div>
+    
+    <!-- 结束主内容容器 -->
     </div>
 
-    <!-- 快捷键按钮 -->
-    <button @click="showShortcuts = true" class="shortcuts-btn" title="查看快捷键">
-      ⌨️
-    </button>
   </div>
 </template>
 
@@ -551,14 +800,13 @@
 import { ref, onMounted, computed, onUnmounted } from 'vue'
 import axios from 'axios'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import LoadingPage from '@/components/pages/LoadingPage.vue'
 
 // 新增的响应式变量
-const isDarkMode = ref(false)
 const autoRefresh = ref(false)
 const refreshInterval = ref(5000) // 5秒
 const messagesPerMinute = ref(0)
 const messageFilter = ref('all')
-const showShortcuts = ref(false)
 let refreshTimer: number | null = null
 let messageCounter = ref(0)
 let lastMinuteTimestamp = ref(Date.now())
@@ -662,11 +910,6 @@ const filteredMessages = computed(() => {
 })
 
 // 新增方法
-const toggleTheme = () => {
-  isDarkMode.value = !isDarkMode.value
-  localStorage.setItem('tcpudp-theme', isDarkMode.value ? 'dark' : 'light')
-}
-
 const toggleAutoRefresh = () => {
   autoRefresh.value = !autoRefresh.value
   
@@ -781,22 +1024,12 @@ const handleKeydown = (event: KeyboardEvent) => {
           exportData()
         }
         break
-      case 't':
-        event.preventDefault()
-        toggleTheme()
-        break
     }
   }
 }
 
 // 初始化加载
 onMounted(async () => {
-  // 加载主题设置
-  const savedTheme = localStorage.getItem('tcpudp-theme')
-  if (savedTheme === 'dark') {
-    isDarkMode.value = true
-  }
-  
   // 添加键盘事件监听
   document.addEventListener('keydown', handleKeydown)
   
@@ -980,6 +1213,37 @@ async function sendUdpClientMsg() {
   }
 }
 
+// TCP/UDP 服务切换方法
+const handleTcpToggle = async () => {
+  try {
+    if (tcpStatus.value) {
+      await axios.post('/api/tcp/stop')
+      showSuccess('TCP Server stopped successfully')
+    } else {
+      await axios.post('/api/tcp/start')
+      showSuccess('TCP Server started successfully')
+    }
+    await fetchTcpStatus()
+  } catch (err) {
+    handleError(err, 'Failed to toggle TCP server')
+  }
+}
+
+const handleUdpToggle = async () => {
+  try {
+    if (udpStatus.value) {
+      await axios.post('/api/udp/stop')
+      showSuccess('UDP Server stopped successfully')
+    } else {
+      await axios.post('/api/udp/start')
+      showSuccess('UDP Server started successfully')
+    }
+    await fetchUdpStatus()
+  } catch (err) {
+    handleError(err, 'Failed to toggle UDP server')
+  }
+}
+
 // 处理错误
 const handleError = (err: any, context: string) => {
   console.error(`${context}:`, err)
@@ -998,12 +1262,6 @@ onUnmounted(() => {
 
 // 初始化
 onMounted(async () => {
-  // 加载主题设置
-  const savedTheme = localStorage.getItem('tcpudp-theme')
-  if (savedTheme === 'dark') {
-    isDarkMode.value = true
-  }
-  
   // 添加键盘事件监听
   document.addEventListener('keydown', handleKeydown)
   
@@ -1028,6 +1286,1321 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* 页面整体布局重新设计 - 绿白模糊背景 */
+.tcpudp-view {
+  width: 100%;
+  min-height: 100vh;
+  padding: 0;
+  margin: 0;
+  background: 
+    radial-gradient(circle at 20% 30%, rgba(16, 185, 129, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(34, 197, 94, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+    linear-gradient(135deg, #f8fafc 0%, #f0fdf4 25%, #ecfdf5 50%, #f0f9ff 75%, #f8fafc 100%);
+  backdrop-filter: blur(2px);
+  overflow-x: hidden;
+  position: relative;
+}
+
+.tcpudp-view::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 10% 20%, rgba(16, 185, 129, 0.03) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(34, 197, 94, 0.02) 0%, transparent 40%),
+    radial-gradient(circle at 70% 30%, rgba(59, 130, 246, 0.02) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.tcpudp-view > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* 页面头部重新设计 */
+.tcpudp-header {
+  position: relative;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  overflow: hidden;
+  padding: 2.5rem 2rem;
+  margin: 1rem 1rem 2rem 1rem;
+  border-radius: 24px;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  box-shadow: 
+    0 8px 32px rgba(16, 185, 129, 0.1),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+/* 新增：背景装饰 */
+.header-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.bg-pattern {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at 25% 25%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(34, 197, 94, 0.06) 0%, transparent 50%);
+  background-size: 100px 100px;
+  animation: patternFloat 20s ease-in-out infinite;
+}
+
+@keyframes patternFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(2deg); }
+}
+
+.floating-icons {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.float-icon {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: 40px;
+  height: 40px;
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  animation: floatAround 6s ease-in-out infinite;
+  animation-delay: var(--delay);
+}
+
+.float-icon i {
+  color: rgba(16, 185, 129, 0.6);
+  font-size: 1rem;
+}
+
+@keyframes floatAround {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-15px) rotate(5deg); }
+  50% { transform: translateY(-8px) rotate(-3deg); }
+  75% { transform: translateY(-20px) rotate(8deg); }
+}
+
+.header-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 2;
+}
+
+.header-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 3rem;
+  margin-bottom: 2rem;
+}
+
+.header-info {
+  flex: 1;
+  max-width: 600px;
+}
+
+.title-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.title-icon {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.25);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.title-icon i {
+  font-size: 1.5rem;
+  color: #ffffff;
+  z-index: 2;
+  position: relative;
+}
+
+.icon-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+  height: 80%;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.3) 0%, transparent 70%);
+  border-radius: 50%;
+  animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+  from { opacity: 0.5; transform: translate(-50%, -50%) scale(0.9); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+}
+
+.title-content {
+  flex: 1;
+}
+
+.main-title {
+  margin: 0;
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 0.5rem;
+}
+
+.title-gradient {
+  background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 2px 8px rgba(31, 41, 55, 0.1);
+}
+
+.title-normal {
+  color: #6b7280;
+  margin-left: 0.5rem;
+}
+
+.title-underline {
+  width: 80px;
+  height: 4px;
+  background: linear-gradient(90deg, #10b981 0%, rgba(16, 185, 129, 0.3) 100%);
+  border-radius: 2px;
+  animation: slideIn 1s ease-out;
+}
+
+@keyframes slideIn {
+  from { width: 0; opacity: 0; }
+  to { width: 80px; opacity: 1; }
+}
+
+.subtitle {
+  margin: 0 0 1.5rem 0;
+  color: #6b7280;
+  font-size: 1.125rem;
+  font-weight: 400;
+  line-height: 1.6;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.subtitle-icon {
+  color: #f59e0b;
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+@keyframes sparkle {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.2) rotate(180deg); }
+}
+
+.feature-badges {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.feature-badge {
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 25px;
+  color: #374151;
+  font-size: 0.85rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);
+}
+
+.feature-badge:hover {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+}
+
+.feature-badge i {
+  font-size: 0.75rem;
+  color: #10b981;
+}
+
+/* 原有样式保持不变 */
+
+/* 主容器布局重新设计 */
+.main-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem 4rem; /* 增加底部间距防止遮挡 */
+  min-height: calc(100vh - 200px); /* 确保有足够的高度 */
+}
+
+/* ==================== 控制面板重新设计 ==================== */
+.control-panel {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 
+    0 12px 40px rgba(16, 185, 129, 0.12),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  margin-bottom: 2rem;
+}
+
+.panel-section {
+  padding: 0;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2rem 2.5rem;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(255, 255, 255, 0.7) 100%);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.1);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-icon {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: white;
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
+  overflow: hidden;
+}
+
+.icon-sparkle {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.3) 50%, transparent 70%);
+  animation: sparkle 3s ease-in-out infinite;
+  transform: translateX(-100%) translateY(-100%) rotate(45deg);
+}
+
+@keyframes sparkle {
+  0%, 100% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+  50% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+}
+
+.header-content h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 0.25rem 0;
+  letter-spacing: -0.02em;
+}
+
+.header-content p {
+  font-size: 0.95rem;
+  color: #6b7280;
+  margin: 0;
+  font-weight: 500;
+}
+
+.stats-display {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.stat-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-radius: 16px;
+  border: 1px solid;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+  min-width: 80px;
+  text-align: center;
+}
+
+.stat-chip-primary {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.2);
+  color: #059669;
+}
+
+.stat-chip-success {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.2);
+  color: #15803d;
+}
+
+.stat-chip-info {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.2);
+  color: #1d4ed8;
+}
+
+.stat-chip:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.stat-chip i {
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.stat-value {
+  font-size: 1.4rem;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.stat-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+.export-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+  border: none;
+  border-radius: 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.3);
+}
+
+.export-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+}
+
+.export-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* 服务切换区域样式 */
+.service-toggles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 1.5rem;
+  padding: 2rem 2.5rem;
+}
+
+.service-toggle {
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid rgba(16, 185, 129, 0.1);
+  border-radius: 20px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.service-toggle.active {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.02);
+  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.15);
+}
+
+.service-toggle:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(16, 185, 129, 0.2);
+}
+
+.service-toggle-tcp.active {
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.service-toggle-udp.active {
+  border-color: rgba(59, 130, 246, 0.3);
+  background: rgba(59, 130, 246, 0.02);
+  box-shadow: 0 8px 32px rgba(59, 130, 246, 0.15);
+}
+
+.toggle-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.75rem;
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.1);
+}
+
+.toggle-icon-wrapper {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  color: white;
+  overflow: hidden;
+}
+
+.service-toggle-tcp .toggle-icon-wrapper {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
+}
+
+.service-toggle-udp .toggle-icon-wrapper {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
+}
+
+.connection-pulse {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 16px;
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
+}
+
+.connection-pulse.active {
+  animation: connectionPulse 2s ease-in-out infinite;
+}
+
+.service-toggle-tcp .connection-pulse.active {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.service-toggle-udp .connection-pulse.active {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+}
+
+@keyframes connectionPulse {
+  0%, 100% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.05); opacity: 0.2; }
+}
+
+.toggle-details {
+  flex: 1;
+  margin: 0 1.5rem;
+}
+
+.toggle-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+}
+
+.toggle-desc {
+  font-size: 0.9rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.toggle-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.status-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  position: relative;
+}
+
+.toggle-status.online .status-indicator {
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+  animation: statusPulse 2s infinite;
+}
+
+.toggle-status.offline .status-indicator {
+  background: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+@keyframes statusPulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2); }
+  50% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.1); }
+}
+
+.status-text {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.toggle-content {
+  padding: 1.75rem;
+}
+
+.service-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.metric-item {
+  text-align: center;
+  padding: 1rem;
+  background: rgba(16, 185, 129, 0.05);
+  border: 1px solid rgba(16, 185, 129, 0.1);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.metric-item:hover {
+  background: rgba(16, 185, 129, 0.08);
+  transform: translateY(-1px);
+}
+
+.metric-value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #10b981;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.metric-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.toggle-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 2rem;
+  border: 2px solid rgba(16, 185, 129, 0.2);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #059669;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.action-btn:hover {
+  background: rgba(16, 185, 129, 0.05);
+  border-color: rgba(16, 185, 129, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.2);
+}
+
+.action-btn.active {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: white;
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.3);
+}
+
+.action-btn.active:hover {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+}
+
+/* 统一所有面板和卡片的基础样式 */
+.control-panel,
+.service-card,
+.history-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(16, 185, 129, 0.15);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.1);
+  margin-bottom: 2rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.control-panel:hover,
+.service-card:hover,
+.history-card:hover {
+  box-shadow: 0 12px 40px rgba(16, 185, 129, 0.15);
+  transform: translateY(-3px);
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+/* 重新设计服务概览部分 */
+.services-overview {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(16, 185, 129, 0.15);
+  border-radius: 20px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.1);
+  overflow: hidden;
+}
+
+.overview-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid rgba(16, 185, 129, 0.1);
+}
+
+.overview-title i {
+  font-size: 1.4rem;
+  color: #10b981;
+  padding: 0.5rem;
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: 12px;
+}
+
+/* 服务状态网格重新设计 */
+.services-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+  align-items: stretch; /* 确保所有卡片高度一致 */
+}
+
+.service-status-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%);
+  border: 2px solid rgba(16, 185, 129, 0.1);
+  border-radius: 18px;
+  padding: 1.75rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.08);
+  position: relative;
+  min-height: 160px; /* 设置最小高度确保一致性 */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.service-status-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.3) 0%, rgba(16, 185, 129, 0.1) 100%);
+  border-radius: 18px 18px 0 0;
+  transition: all 0.3s ease;
+}
+
+.service-status-card.active {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.03) 0%, rgba(255, 255, 255, 0.95) 100%);
+  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.15);
+  transform: translateY(-2px);
+}
+
+.service-status-card.active::before {
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+  height: 5px;
+}
+
+.service-status-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.service-status-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  flex-shrink: 0;
+}
+
+.service-status-icon {
+  width: 52px;
+  height: 52px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  color: #ffffff;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.service-status-icon::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.2) 50%, transparent 70%);
+  animation: iconShine 3s ease-in-out infinite;
+}
+
+@keyframes iconShine {
+  0%, 100% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+  50% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+}
+
+.service-status-info {
+  flex: 1;
+  margin: 0 1rem;
+}
+
+.service-status-info h4 {
+  margin: 0 0 0.3rem 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #1f2937;
+  line-height: 1.2;
+}
+
+.service-port {
+  font-size: 0.9rem;
+  color: #6b7280;
+  font-weight: 600;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 0.25rem 0.75rem;
+  border-radius: 8px;
+  display: inline-block;
+}
+
+.service-status-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.status-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  position: relative;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.8);
+}
+
+.status-dot.online {
+  background: #10b981;
+  animation: pulseOnline 2s ease-in-out infinite;
+}
+
+.status-dot.offline {
+  background: #ef4444;
+  animation: pulseOffline 2s ease-in-out infinite;
+}
+
+@keyframes pulseOnline {
+  0%, 100% { 
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.8), 0 0 0 6px rgba(16, 185, 129, 0.2);
+  }
+  50% { 
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.8), 0 0 0 10px rgba(16, 185, 129, 0.1);
+  }
+}
+
+@keyframes pulseOffline {
+  0%, 100% { 
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.8), 0 0 0 6px rgba(239, 68, 68, 0.2);
+  }
+  50% { 
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.8), 0 0 0 10px rgba(239, 68, 68, 0.1);
+  }
+}
+
+.status-text {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+  text-align: right;
+}
+
+.service-stats-row {
+  display: flex;
+  gap: 1rem;
+  margin-top: auto; /* 将统计数据推到底部 */
+}
+
+.stat-box {
+  flex: 1;
+  text-align: center;
+  padding: 1rem;
+  background: rgba(16, 185, 129, 0.05);
+  border: 1px solid rgba(16, 185, 129, 0.15);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.stat-box:hover {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.2);
+  transform: translateY(-1px);
+}
+
+.stat-number {
+  display: block;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #10b981;
+  line-height: 1;
+  margin-bottom: 0.3rem;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* 重新设计监控面板 */
+.monitor-panel {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(16, 185, 129, 0.15);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.12);
+  overflow: hidden;
+  margin-bottom: 2rem;
+}
+
+.monitor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2rem 2.5rem 1.5rem;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.1);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.03) 0%, rgba(255, 255, 255, 0.6) 100%);
+}
+
+.monitor-title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.monitor-title-icon {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  color: white;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
+}
+
+.title-pulse {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  opacity: 0.4;
+  animation: titlePulse 2s ease-in-out infinite;
+}
+
+@keyframes titlePulse {
+  0%, 100% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.1); opacity: 0.2; }
+}
+
+.monitor-title h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.monitor-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.control-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1.5rem;
+  border: none;
+  border-radius: 14px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.8) 100%);
+  color: #374151;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.1);
+}
+
+.control-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.15);
+  background: linear-gradient(135deg, #ffffff 0%, rgba(248, 250, 252, 0.95) 100%);
+}
+
+.control-btn.active {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.btn-icon {
+  font-size: 1.1rem;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+}
+
+.btn-text {
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.refresh-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.15);
+  border-radius: 12px;
+  color: #059669;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.monitor-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+  padding: 2rem 2.5rem;
+}
+
+.metric-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.7) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.1);
+  border-radius: 16px;
+  padding: 1.75rem;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.metric-card:hover::before {
+  opacity: 1;
+}
+
+.metric-icon {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: white;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.25);
+}
+
+.metric-glow {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  opacity: 0.3;
+  animation: metricGlow 3s ease-in-out infinite;
+}
+
+@keyframes metricGlow {
+  0%, 100% { transform: scale(1); opacity: 0.3; }
+  50% { transform: scale(1.05); opacity: 0.1; }
+}
+
+.metric-content {
+  text-align: left;
+}
+
+.metric-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #1f2937;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.metric-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+}
+
+.metric-trend {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #059669;
+}
+
+.metric-trend i {
+  font-size: 0.75rem;
+}
+
+.text-success {
+  color: #10b981 !important;
+}
+
+.text-danger {
+  color: #ef4444 !important;
+}
+
+/* 优化主网格布局 */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+/* 历史记录卡片占据整行 */
+.history-card {
+  grid-column: 1 / -1;
+}
+
+/* 新的服务状态卡片样式 */
+.services-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.service-status-card {
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid rgba(16, 185, 129, 0.1);
+  border-radius: 16px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.05);
+}
+
+.service-status-card.active {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.02);
+  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.15);
+}
+
+.service-status-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(16, 185, 129, 0.2);
+}
+
+.service-status-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.service-status-icon {
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  color: #ffffff;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
+}
+
+.service-status-info h4 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.service-port {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.service-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  position: relative;
+}
+
+.status-dot.online {
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+  animation: pulse-online 2s infinite;
+}
+
+.status-dot.offline {
+  background: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+@keyframes pulse-online {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2); }
+  50% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.1); }
+}
+
+.status-text {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.service-stats-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.stat-box {
+  flex: 1;
+  text-align: center;
+  padding: 1rem;
+  background: rgba(16, 185, 129, 0.05);
+  border: 1px solid rgba(16, 185, 129, 0.1);
+  border-radius: 12px;
+}
+
+.stat-number {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #10b981;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
 /* 主题变量 */
 :root {
   --bg-primary: linear-gradient(135deg, #e8f2ff 0%, #f8fafc 100%);
@@ -1157,39 +2730,6 @@ onMounted(async () => {
   color: #6c757d;
   font-weight: 600;
   margin-top: 0.2rem;
-}
-
-/* Loading Overlay */
-.loading-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(8px);
-}
-
-.loading-content {
-  background: rgba(255, 255, 255, 0.95);
-  padding: 3rem 4rem;
-  border-radius: 24px;
-  text-align: center;
-  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.loading-content p {
-  margin: 1.5rem 0 0 0;
-  color: #2d3748;
-  font-size: 1.2rem;
-  font-weight: 600;
-  letter-spacing: 0.3px;
 }
 
 /* Messages */
@@ -2468,85 +4008,7 @@ onMounted(async () => {
   gap: 1rem;
 }
 
-.monitor-title-icon {
-  font-size: 1.8rem;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
-}
 
-.monitor-title h3 {
-  font-size: 1.4rem;
-  font-weight: 800;
-  color: #1a202c;
-  margin: 0;
-  letter-spacing: -0.02em;
-}
-
-.status-badge {
-  padding: 0.4rem 1rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
-  color: white;
-  box-shadow: 0 2px 8px rgba(100, 116, 139, 0.3);
-  transition: all 0.3s ease;
-}
-
-.status-badge.active {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
-  animation: statusGlow 2s ease-in-out infinite;
-}
-
-@keyframes statusGlow {
-  0%, 100% { box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3); }
-  50% { box-shadow: 0 4px 16px rgba(16, 185, 129, 0.5); }
-}
-
-.monitor-controls {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-}
-
-.control-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  border: none;
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.8) 100%);
-  color: #374151;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(229, 231, 235, 0.6);
-}
-
-.control-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-  background: linear-gradient(135deg, #ffffff 0%, rgba(248, 250, 252, 0.95) 100%);
-}
-
-.control-btn.active {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: white;
-  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
-}
-
-.control-btn.theme-toggle {
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  justify-content: center;
-  border-radius: 50%;
-}
 
 .btn-icon {
   font-size: 1.1rem;
@@ -2929,40 +4391,7 @@ onMounted(async () => {
     0 1px 0 rgba(255, 255, 255, 0.1) inset;
 }
 
-/* ======================== 主题切换按钮样式 ======================== */
-.theme-toggle {
-  position: fixed;
-  top: 2rem;
-  right: 2rem;
-  z-index: 1000;
-}
 
-.theme-btn {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  border: none;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%);
-  color: #374151;
-  font-size: 1.4rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 
-    0 8px 25px rgba(0, 0, 0, 0.1),
-    0 1px 0 rgba(255, 255, 255, 0.9) inset;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.theme-btn:hover {
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 
-    0 12px 35px rgba(0, 0, 0, 0.15),
-    0 1px 0 rgba(255, 255, 255, 0.9) inset;
-}
 
 /* 深色主题样式调整 */
 .dark-theme .real-time-monitor {
@@ -3112,7 +4541,7 @@ onMounted(async () => {
 
 /* ======================== 响应式调整 ======================== */
 @media (max-width: 768px) {
-  .real-time-monitor {
+  .monitor-panel {
     margin: 0 0.5rem 1.5rem;
     border-radius: 16px;
   }
@@ -3124,58 +4553,81 @@ onMounted(async () => {
     padding: 1.5rem;
   }
   
-  .monitor-grid {
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  .monitor-metrics {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1rem;
     padding: 1.5rem;
   }
   
-  .monitor-card {
+  .metric-card {
     padding: 1.5rem;
   }
   
-  .monitor-value {
-    font-size: 2rem;
+  .metric-value {
+    font-size: 1.75rem;
   }
   
-  .shortcuts-content {
-    margin: 1rem;
-    padding: 2rem;
+  .main-container {
+    padding: 1rem 1rem 3rem; /* 移动端也保持底部间距 */
   }
   
-  .shortcuts-btn {
-    bottom: 1rem;
-    right: 1rem;
-    width: 50px;
-    height: 50px;
-    font-size: 1.2rem;
+  .tcpudp-header {
+    margin: 0 0.5rem 1.5rem;
+    padding: 1.5rem;
+    border-radius: 20px;
   }
   
-  .theme-toggle {
-    top: 1rem;
-    right: 1rem;
+  .header-main {
+    flex-direction: column;
+    gap: 2rem;
   }
   
-  .theme-btn {
-    width: 44px;
-    height: 44px;
-    font-size: 1.2rem;
+  .stats-container {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 1rem;
+  }
+  
+  .services-status-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .service-status-card {
+    min-height: 140px; /* 移动端稍微降低最小高度 */
+  }
+  
+  .services-overview {
+    margin: 0 0.5rem 1.5rem;
+    padding: 1.5rem;
+  }
+  
+  .monitor-panel {
+    margin: 0 0.5rem 1.5rem;
   }
 }
 
 @media (max-width: 480px) {
-  .monitor-grid {
+  .monitor-metrics {
     grid-template-columns: 1fr;
-  }
-  
-  .shortcut-item {
-    flex-direction: column;
-    gap: 0.5rem;
-    text-align: center;
+    gap: 1rem;
+    padding: 1rem;
   }
   
   .control-btn .btn-text {
     display: none;
+  }
+  
+  .metric-card {
+    padding: 1.25rem;
+  }
+  
+  .metric-value {
+    font-size: 1.5rem;
+  }
+  
+  .feature-badges {
+    flex-direction: column;
+    gap: 0.5rem;
   }
 }
 </style>
