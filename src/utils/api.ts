@@ -13,11 +13,20 @@ const getApiBaseUrl = (): string => {
   } else if (port === '8080') {
     // Vue CLI 开发服务器
     return 'http://localhost:3000';
+  } else if (port === '3000') {
+    // 直接访问3000端口 - API和前端在同一服务器同一端口
+    return `${protocol}//${hostname}:3000`;
   } else if (port === '80' || port === '' || !port) {
-    // 生产环境 - 80端口，API和前端在同一服务器同一端口
+    // 通过nginx代理访问80端口 - API和前端都通过nginx代理
+    return `${protocol}//${hostname}`;
+  } else if (port === '443') {
+    // 通过nginx代理访问443端口 (HTTPS)
     return `${protocol}//${hostname}`;
   } else {
-    // 其他情况，默认使用3000端口
+    // 其他情况，优先尝试无端口(nginx代理)，备选3000端口
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return `${protocol}//${hostname}`;
+    }
     return `http://${hostname}:3000`;
   }
 };
