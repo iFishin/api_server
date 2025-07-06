@@ -5,16 +5,27 @@ export interface TcpClientInfo {
   address: string
   port: number
   socket: net.Socket
+  connectedAt: Date
 }
 
 export class TcpService {
-  private server: net.Server
+  private server: net.Server | null = null
   private clients: Map<string, TcpClientInfo> = new Map()
   private echoEnabled: boolean = true
   private echoContent: string | null = null
   private isListening: boolean = false
+  private port: number
 
   constructor(port: number = 9001) {
+    this.port = port
+    this.createServer()
+  }
+
+  private createServer() {
+    if (this.server) {
+      return
+    }
+    
     this.server = net.createServer(socket => {
       const clientId = `${socket.remoteAddress}:${socket.remotePort}`
       this.clients.set(clientId, {
@@ -22,6 +33,7 @@ export class TcpService {
         address: socket.remoteAddress || '',
         port: socket.remotePort || 0,
         socket,
+        connectedAt: new Date()
       })
       console.log(`TCP client connected: ${clientId}`)
 
@@ -45,9 +57,54 @@ export class TcpService {
         this.clients.delete(clientId)
       })
     })
-    this.server.listen(port, () => {
-      this.isListening = true
-      console.log(`TCP server listening on port ${port}`)
+  }
+
+  // 启动TCP服务
+  start(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (this.isListening) {
+        resolve()
+        return
+      }
+      
+      this.createServer()
+      if (!this.server) {
+        reject(new Error('Failed to create server'))
+        return
+      }
+      
+      this.server.listen(this.port, () => {
+        this.isListening = true
+        console.log(`TCP server listening on port ${this.port}`)
+        resolve()
+      })
+      
+      this.server.on('error', (err) => {
+        console.error('TCP server error:', err)
+        this.isListening = false
+        reject(err)
+      })
+    })
+  }
+
+  // 停止TCP服务
+  stop(): Promise<void> {
+    return new Promise((resolve) => {
+      if (!this.isListening || !this.server) {
+        resolve()
+        return
+      }
+      
+      // 关闭所有客户端连接
+      this.closeAllClients()
+      
+      // 关闭服务器
+      this.server.close(() => {
+        this.isListening = false
+        this.server = null
+        console.log('TCP server stopped')
+        resolve()
+      })
     })
   }
 
@@ -72,14 +129,24 @@ export class TcpService {
     }
   }
 
+  // 获取回显配置
+  getEchoConfig() {
+    return {
+      enabled: this.echoEnabled,
+      content: this.echoContent
+    }
+  }
+
   // 主动向指定客户端发送消息
-  sendToClient(clientId: string, message: string) {
+  sendToClient(clientId: string, message: string): boolean {
     const client = this.clients.get(clientId)
     if (client) {
       client.socket.write(message)
       console.log(`Sent to ${clientId}: ${message}`)
+      return true
     } else {
       console.warn(`Client ${clientId} not found`)
+      return false
     }
   }
 
@@ -103,6 +170,20 @@ export class TcpService {
     return Array.from(this.clients.values())
   }
 
+  // 断开指定客户端连接
+  disconnectClient(clientId: string): boolean {
+    const client = this.clients.get(clientId)
+    if (client) {
+      client.socket.destroy()
+      this.clients.delete(clientId)
+      console.log(`TCP client ${clientId} disconnected by server`)
+      return true
+    } else {
+      console.warn(`TCP client ${clientId} not found for disconnection`)
+      return false
+    }
+  }
+
   // 关闭所有客户端连接
   closeAllClients() {
     for (const client of Array.from(this.clients.values())) {
@@ -114,3 +195,6 @@ export class TcpService {
 }
 
 export const tcpService = new TcpService(9001)
+
+// 启动服务
+tcpService.start().catch(console.error)

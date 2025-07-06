@@ -78,7 +78,7 @@
             <i class="fas fa-plug"></i>
             <div>
               <h3>TCP Server</h3>
-              <span>Port 9001</span>
+              <span>Port 9001 • {{ tcpClients.length }} client{{ tcpClients.length !== 1 ? 's' : '' }}</span>
             </div>
           </div>
           <div class="service-status">
@@ -95,7 +95,7 @@
             <i class="fas fa-broadcast-tower"></i>
             <div>
               <h3>UDP Server</h3>
-              <span>Port 9000</span>
+              <span>Port 9000 • Stateless protocol</span>
             </div>
           </div>
           <div class="service-status">
@@ -139,24 +139,52 @@
             <!-- Connected Clients -->
             <div class="clients-section">
               <h3>Connected Clients ({{ tcpClients.length }})</h3>
+              <div class="clients-actions" v-if="tcpClients.length > 0">
+                <button @click="refreshClients" :disabled="tcpLoading" class="refresh-clients-btn">
+                  <i class="fas fa-sync-alt"></i>
+                  Refresh
+                </button>
+                <button @click="disconnectAllClients" :disabled="tcpLoading" class="disconnect-all-btn">
+                  <i class="fas fa-times-circle"></i>
+                  Disconnect All
+                </button>
+              </div>
               <div v-if="tcpClients.length > 0" class="clients-list">
                 <div v-for="client in tcpClients" :key="client.id" class="client-item">
                   <div class="client-info">
                     <i class="fas fa-desktop"></i>
-                    <span>{{ client.id }}</span>
+                    <div class="client-details">
+                      <div class="client-id">{{ client.id }}</div>
+                      <div class="client-address">{{ client.address }}:{{ client.port }}</div>
+                      <div class="client-status">
+                        <span class="status-dot online"></span>
+                        Connected
+                        <span class="connection-time">{{ getConnectionTime(client.id) }}</span>
+                      </div>
+                    </div>
                   </div>
                   <div class="message-input">
                     <input 
                       v-model="tcpSendMsg[client.id]" 
-                      placeholder="Enter message..."
+                      placeholder="Enter message to send..."
                       :disabled="tcpLoading"
                       @keydown.enter="sendToTcpClient(client.id)"
                     />
                     <button 
                       @click="sendToTcpClient(client.id)" 
                       :disabled="tcpLoading || !tcpSendMsg[client.id]?.trim()"
+                      class="send-btn"
                     >
                       <i class="fas fa-paper-plane"></i>
+                      Send
+                    </button>
+                    <button 
+                      @click="disconnectClient(client.id)" 
+                      :disabled="tcpLoading"
+                      class="disconnect-btn"
+                      title="Disconnect client"
+                    >
+                      <i class="fas fa-times"></i>
                     </button>
                   </div>
                 </div>
@@ -164,6 +192,7 @@
               <div v-else class="empty-state">
                 <i class="fas fa-plug"></i>
                 <p>No clients connected</p>
+                <small>Clients will appear here when they connect to port 9001</small>
               </div>
             </div>
 
@@ -274,6 +303,7 @@
                   <span class="message-type" :class="msg.type">{{ msg.type.toUpperCase() }}</span>
                   <i class="message-direction" :class="`fas ${msg.direction === 'in' ? 'fa-arrow-down' : 'fa-arrow-up'}`"></i>
                   <span class="message-time">{{ formatTime(msg.timestamp) }}</span>
+                  <span class="message-date">{{ formatDate(msg.timestamp) }}</span>
                 </div>
                 <div class="message-content">
                   <div class="message-route">
@@ -325,7 +355,14 @@ const successMessage = ref('')
 const tcpStatus = ref(false)
 const tcpEchoEnabled = ref(true)
 const tcpEchoContent = ref('')
-const tcpClients = ref<{id: string}[]>([])
+const tcpClients = ref<{
+  id: string, 
+  address: string, 
+  port: number, 
+  connected: boolean,
+  connectedAt: string,
+  connectedDuration: number
+}[]>([])
 const tcpSendMsg = ref<Record<string, string>>({})
 const tcpTargetIp = ref('127.0.0.1')
 const tcpTargetPort = ref(9001)
@@ -463,6 +500,36 @@ const formatTime = (date: Date) => {
   })
 }
 
+const formatDate = (date: Date) => {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const msgDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  
+  if (msgDate.getTime() === today.getTime()) {
+    return 'Today'
+  } else if (msgDate.getTime() === today.getTime() - 86400000) {
+    return 'Yesterday'
+  } else {
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
+}
+
+const getConnectionTime = (clientId: string) => {
+  const client = tcpClients.value.find(c => c.id === clientId)
+  if (!client) return 'Unknown'
+  
+  const duration = client.connectedDuration
+  if (duration < 60) {
+    return `${duration}s`
+  } else if (duration < 3600) {
+    return `${Math.floor(duration / 60)}m ${duration % 60}s`
+  } else {
+    const hours = Math.floor(duration / 3600)
+    const minutes = Math.floor((duration % 3600) / 60)
+    return `${hours}h ${minutes}m`
+  }
+}
+
 const handleError = (err: any, context: string) => {
   console.error(`${context}:`, err)
   const message = err.response?.data?.message || err.message || 'An error occurred'
@@ -583,6 +650,48 @@ async function sendToTcpClient(clientId: string) {
   } catch (err) {
     addMessageToHistory('tcp', 'out', tcpSendMsg.value[clientId], 'Server', clientId, 'error')
     handleError(err, 'Failed to send message to TCP client')
+  } finally {
+    tcpLoading.value = false
+  }
+}
+
+async function disconnectClient(clientId: string) {
+  if (!confirm(`Are you sure you want to disconnect client ${clientId}?`)) return
+  
+  tcpLoading.value = true
+  try {
+    await axios.post('/api/tcp/disconnectClient', { clientId })
+    showSuccess(`Client ${clientId} disconnected`)
+    await fetchTcpClients() // 刷新客户端列表
+  } catch (err) {
+    handleError(err, 'Failed to disconnect TCP client')
+  } finally {
+    tcpLoading.value = false
+  }
+}
+
+async function refreshClients() {
+  tcpLoading.value = true
+  try {
+    await fetchTcpClients()
+    showSuccess('Client list refreshed')
+  } catch (err) {
+    handleError(err, 'Failed to refresh client list')
+  } finally {
+    tcpLoading.value = false
+  }
+}
+
+async function disconnectAllClients() {
+  if (!confirm('Are you sure you want to disconnect all clients?')) return
+  
+  tcpLoading.value = true
+  try {
+    await axios.post('/api/tcp/closeAllClients')
+    showSuccess('All clients disconnected')
+    await fetchTcpClients() // 刷新客户端列表
+  } catch (err) {
+    handleError(err, 'Failed to disconnect all clients')
   } finally {
     tcpLoading.value = false
   }
@@ -1096,6 +1205,54 @@ input:checked + .slider:before {
   color: #374151;
 }
 
+.clients-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.refresh-clients-btn {
+  padding: 0.5rem 1rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  transition: background-color 0.2s;
+}
+
+.refresh-clients-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.disconnect-all-btn {
+  padding: 0.5rem 1rem;
+  background: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  transition: background-color 0.2s;
+}
+
+.disconnect-all-btn:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.refresh-clients-btn:disabled,
+.disconnect-all-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 
 
 .client-item {
@@ -1106,17 +1263,56 @@ input:checked + .slider:before {
   background: #f8fafc;
   border-radius: 6px;
   margin-bottom: 1rem;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s;
+}
+
+.client-item:hover {
+  background: #f0fdf4;
+  border-color: #10b981;
 }
 
 .client-info {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  min-width: 120px;
+  gap: 0.75rem;
+  min-width: 200px;
 }
 
 .client-info i {
   color: #10b981;
+  font-size: 1.25rem;
+}
+
+.client-details {
+  flex: 1;
+}
+
+.client-id {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+}
+
+.client-address {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
+}
+
+.client-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: #16a34a;
+}
+
+.connection-time {
+  margin-left: auto;
+  color: #6b7280;
+  font-size: 0.7rem;
 }
 
 .message-input {
@@ -1133,16 +1329,46 @@ input:checked + .slider:before {
   font-size: 0.875rem;
 }
 
-.message-input button {
+.send-btn {
   padding: 0.5rem 1rem;
   background: #10b981;
   color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background-color 0.2s;
 }
 
-.message-input button:disabled {
+.send-btn:hover:not(:disabled) {
+  background: #059669;
+}
+
+.send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.disconnect-btn {
+  padding: 0.5rem;
+  background: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.disconnect-btn:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.disconnect-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -1283,6 +1509,12 @@ input:checked + .slider:before {
 .message-time {
   font-size: 0.75rem;
   color: #6b7280;
+}
+
+.message-date {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  margin-left: 0.5rem;
 }
 
 .message-content {

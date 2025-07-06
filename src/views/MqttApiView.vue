@@ -80,8 +80,20 @@
             </div>
           </div>
           <div class="service-status">
-            <span class="status-dot" :class="{ online: brokerStatus }"></span>
-            {{ brokerStatus ? 'Online' : 'Offline' }}
+            <div class="status-group">
+              <div class="status-item">
+                <span class="status-dot" :class="{ online: brokerDetailedStatus.mqtt.listening }"></span>
+                <span class="status-label">MQTT :{{ brokerDetailedStatus.mqtt.port }}</span>
+              </div>
+              <div class="status-item" v-if="brokerDetailedStatus.mqtts.tlsAvailable">
+                <span class="status-dot" :class="{ online: brokerDetailedStatus.mqtts.listening }"></span>
+                <span class="status-label">MQTTS :{{ brokerDetailedStatus.mqtts.port }}</span>
+              </div>
+            </div>
+            <div class="overall-status">
+              <span class="status-dot" :class="{ online: brokerStatus }"></span>
+              {{ brokerStatus ? 'Online' : 'Offline' }}
+            </div>
           </div>
           <button @click="toggleBroker" class="toggle-btn" :class="{ active: brokerStatus }">
             <i :class="brokerStatus ? 'fas fa-stop' : 'fas fa-play'"></i>
@@ -140,13 +152,25 @@
               <div v-if="mqttClients.length > 0" class="clients-list">
                 <div v-for="client in mqttClients" :key="client.id" class="client-item">
                   <div class="client-info">
-                    <i class="fas fa-user"></i>
-                    <span>{{ client.id }}</span>
-                    <span class="client-status" :class="client.status">{{ client.status }}</span>
+                    <i class="fas fa-satellite-dish"></i>
+                    <div class="client-details">
+                      <div class="client-id">
+                        {{ client.id }}
+                        <span class="protocol-badge" :class="client.protocol?.toLowerCase()">
+                          {{ client.protocol || 'MQTT' }}
+                        </span>
+                      </div>
+                      <div class="client-stats">{{ client.subscriptionCount || 0 }} subscriptions</div>
+                      <div class="client-status">
+                        <span class="status-dot online"></span>
+                        Connected {{ getConnectionTime(client.connectedDuration || 0) }}
+                      </div>
+                    </div>
                   </div>
                   <div class="client-actions">
-                    <button @click="kickClient(client.id)" class="kick-btn">
+                    <button @click="kickClient(client.id)" class="kick-btn" title="Disconnect client">
                       <i class="fas fa-times"></i>
+                      Kick
                     </button>
                   </div>
                 </div>
@@ -334,7 +358,50 @@ const username = ref('')
 const password = ref('')
 
 // Clients
-const mqttClients = ref<Array<{id: string, status: string}>>([])
+const mqttClients = ref<Array<{
+  id: string, 
+  connected: boolean,
+  connectedAt: string,
+  connectedDuration: number,
+  subscriptions: string[],
+  subscriptionCount: number,
+  protocol: string
+}>>([])
+
+// Broker detailed status
+const brokerDetailedStatus = ref<{
+  isListening: boolean,
+  mqtt: {
+    enabled: boolean,
+    port: number,
+    listening: boolean
+  },
+  mqtts: {
+    enabled: boolean,
+    port: number,
+    listening: boolean,
+    tlsAvailable: boolean
+  },
+  clients: {
+    total: number,
+    mqtt: number,
+    mqtts: number
+  },
+  echo: {
+    enabled: boolean,
+    content: string | null
+  }
+}>({
+  isListening: false,
+  mqtt: { enabled: false, port: 1883, listening: false },
+  mqtts: { enabled: false, port: 8883, listening: false, tlsAvailable: false },
+  clients: { total: 0, mqtt: 0, mqtts: 0 },
+  echo: { enabled: true, content: null }
+})
+
+// Echo configuration
+const echoEnabled = ref(true)
+const echoContent = ref('')
 
 // Subscriptions
 const subscriptions = ref<Array<{topic: string, qos: number}>>([])
@@ -468,6 +535,18 @@ const formatTime = (date: Date) => {
   })
 }
 
+const getConnectionTime = (duration: number) => {
+  if (duration < 60) {
+    return `${duration}s`
+  } else if (duration < 3600) {
+    return `${Math.floor(duration / 60)}m ${duration % 60}s`
+  } else {
+    const hours = Math.floor(duration / 3600)
+    const minutes = Math.floor((duration % 3600) / 60)
+    return `${hours}h ${minutes}m`
+  }
+}
+
 const handleError = (err: any, context: string) => {
   console.error(`${context}:`, err)
   const message = err.response?.data?.message || err.message || 'An error occurred'
@@ -482,6 +561,21 @@ async function fetchBrokerStatus() {
   try {
     const res = await axios.get('/api/mqtt/status')
     brokerStatus.value = res.data.running
+    
+    // Update detailed status
+    if (res.data.success) {
+      brokerDetailedStatus.value = {
+        isListening: res.data.isListening || false,
+        mqtt: res.data.mqtt || { enabled: false, port: 1883, listening: false },
+        mqtts: res.data.mqtts || { enabled: false, port: 8883, listening: false, tlsAvailable: false },
+        clients: res.data.clients || { total: 0, mqtt: 0, mqtts: 0 },
+        echo: res.data.echo || { enabled: true, content: null }
+      }
+      
+      // Update local echo settings
+      echoEnabled.value = res.data.echo?.enabled || true
+      echoContent.value = res.data.echo?.content || ''
+    }
   } catch (err) {
     handleError(err, 'Failed to fetch broker status')
   }
@@ -620,6 +714,19 @@ const refreshStatus = async () => {
     handleError(err, 'Failed to refresh status')
   } finally {
     loading.value = false
+  }
+}
+
+// Echo configuration functions
+async function updateEchoConfig() {
+  try {
+    await axios.post('/api/mqtt/echo', {
+      enabled: echoEnabled.value,
+      content: echoContent.value || null
+    })
+    showSuccess('Echo configuration updated successfully')
+  } catch (err) {
+    handleError(err, 'Failed to update echo configuration')
   }
 }
 
@@ -925,6 +1032,63 @@ onUnmounted(() => {
   background: #16a34a;
 }
 
+/* Service status group */
+.service-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.status-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-end;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.status-label {
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 0.75rem;
+}
+
+.overall-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* Protocol badge */
+.protocol-badge {
+  display: inline-block;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  border-radius: 4px;
+  margin-left: 0.5rem;
+  text-transform: uppercase;
+}
+
+.protocol-badge.mqtt {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.protocol-badge.mqtts {
+  background: #dcfce7;
+  color: #166534;
+}
+
 .toggle-btn {
   padding: 0.5rem 1rem;
   background: white;
@@ -1198,37 +1362,72 @@ input:checked + .slider:before {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.75rem;
+  padding: 1rem;
   background: #f8fafc;
   border-radius: 6px;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s;
+}
+
+.client-item:hover {
+  background: #f0f9ff;
+  border-color: #6366f1;
 }
 
 .client-info {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  flex: 1;
 }
 
 .client-info i {
   color: #6366f1;
+  font-size: 1.25rem;
+}
+
+.client-details {
+  flex: 1;
+}
+
+.client-id {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+}
+
+.client-stats {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
 }
 
 .client-status {
-  padding: 0.125rem 0.5rem;
-  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 0.75rem;
-  background: #f0fdf4;
   color: #16a34a;
 }
 
 .kick-btn {
-  padding: 0.25rem 0.5rem;
+  padding: 0.5rem 1rem;
   background: #dc2626;
   color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  transition: background-color 0.2s;
+}
+
+.kick-btn:hover {
+  background: #b91c1c;
 }
 
 /* History */

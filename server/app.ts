@@ -5,6 +5,9 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import userRoutes from './routes/userRoutes';
 import httpRoutes from './routes/httpRoutes';
+import tcpRoutes from './routes/tcpRoutes';
+import udpRoutes from './routes/udpRoutes';
+import mqttRoutes from './routes/mqttRoutes';
 import { errorHandler } from './middlewares/errorHandler';
 import fileRoutes from './routes/fileRoutes';
 import { setupWebDAV } from './services/webdavService';
@@ -137,6 +140,9 @@ app.use((req, res, next) => {
 // API 路由 - 移到最前面
 app.use('/api/users', userRoutes);
 app.use('/api/http', httpRoutes);
+app.use('/api/tcp', tcpRoutes);
+app.use('/api/udp', udpRoutes);
+app.use('/api/mqtt', mqttRoutes);
 app.use('/api/files', fileRoutes);
 
 // 专门处理 favicon.ico 路由
