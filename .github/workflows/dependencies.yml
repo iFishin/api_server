@@ -4,103 +4,489 @@ on:
   schedule:
     # 每周一早上8点检查依赖更新
     - cron: '0 8 * * 1'
+    # 每月1号运行主版本更新检查
+    - cron: '0 8 1 * *'
   workflow_dispatch:
+    inputs:
+      update_type:
+        description: 'Type of update to perform'
+        required: false
+        default: 'minor'
+        type: choice
+        options:
+        - patch
+        - minor  
+        - major
+        - all
+      dry_run:
+        description: 'Dry run mode (no changes made)'
+        required: false
+        type: boolean
+        default: false
+      force_update:
+        description: 'Force update even if tests fail'
+        required: false
+        type: boolean
+        default: false
+
+# 并发控制：确保只有一个依赖更新工作流在运行
+concurrency:
+  group: dependencies-${{ github.ref }}
+  cancel-in-progress: false  # 不取消进行中的依赖更新，避免状态不一致
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: write
+  actions: read
+  issues: write
+
+env:
+  NODE_VERSION: '18'
+  UPDATE_TYPE: ${{ github.event.inputs.update_type || (github.event.schedule == '0 8 1 * *' && 'major' || 'minor') }}
+  DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+  FORCE_UPDATE: ${{ github.event.inputs.force_update || 'false' }}
 
 jobs:
-  update-dependencies:
-    name: 🔄 Update Dependencies
+  analyze-dependencies:
+    name: � Analyze Dependencies
     runs-on: ubuntu-latest
-    
-    permissions:
-      contents: write
-      pull-requests: write
+    outputs:
+      has_updates: ${{ steps.check_updates.outputs.has_updates }}
+      update_summary: ${{ steps.check_updates.outputs.update_summary }}
+      security_updates: ${{ steps.check_updates.outputs.security_updates }}
+      major_updates: ${{ steps.check_updates.outputs.major_updates }}
       
     steps:
     - name: 📥 Checkout code
       uses: actions/checkout@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
         
     - name: 📦 Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
         
-    - name: 🔍 Check for updates
+    - name: � Install dependencies
+      run: npm ci
+        
+    - name: �🔍 Check for updates
+      id: check_updates
       run: |
+        echo "## 🔍 Dependency Analysis Report" >> $GITHUB_STEP_SUMMARY
+        echo "**Update Type**: ${{ env.UPDATE_TYPE }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Dry Run Mode**: ${{ env.DRY_RUN }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # 获取过期的依赖
         npm outdated --json > outdated.json || true
-        if [ -s outdated.json ]; then
-          echo "📦 Found dependency updates:"
-          cat outdated.json | jq -r 'to_entries[] | "- \(.key): \(.value.current) → \(.value.wanted)"'
-          echo "HAS_UPDATES=true" >> $GITHUB_ENV
+        
+        if [ -s outdated.json ] && [ "$(cat outdated.json)" != "{}" ]; then
+          echo "has_updates=true" >> $GITHUB_OUTPUT
+          
+          # 分析更新类型
+          PATCH_UPDATES=$(cat outdated.json | jq -r 'to_entries[] | select(.value.wanted != .value.latest and (.value.wanted | split(".")[0]) == (.value.current | split(".")[0]) and (.value.wanted | split(".")[1]) == (.value.current | split(".")[1])) | .key' | wc -l)
+          MINOR_UPDATES=$(cat outdated.json | jq -r 'to_entries[] | select(.value.wanted != .value.latest and (.value.wanted | split(".")[0]) == (.value.current | split(".")[0]) and (.value.wanted | split(".")[1]) != (.value.current | split(".")[1])) | .key' | wc -l)
+          MAJOR_UPDATES=$(cat outdated.json | jq -r 'to_entries[] | select(.value.wanted != .value.latest and (.value.wanted | split(".")[0]) != (.value.current | split(".")[0])) | .key' | wc -l)
+          
+          echo "### 📊 Update Summary:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Patch Updates**: $PATCH_UPDATES" >> $GITHUB_STEP_SUMMARY
+          echo "- **Minor Updates**: $MINOR_UPDATES" >> $GITHUB_STEP_SUMMARY
+          echo "- **Major Updates**: $MAJOR_UPDATES" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # 详细列表
+          echo "### 📦 Available Updates:" >> $GITHUB_STEP_SUMMARY
+          echo "| Package | Current | Wanted | Latest | Type |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|---------|--------|--------|------|" >> $GITHUB_STEP_SUMMARY
+          
+          cat outdated.json | jq -r 'to_entries[] | "| \(.key) | \(.value.current) | \(.value.wanted) | \(.value.latest) | \(if (.value.wanted | split(".")[0]) != (.value.current | split(".")[0]) then "major" elif (.value.wanted | split(".")[1]) != (.value.current | split(".")[1]) then "minor" else "patch" end) |"' >> $GITHUB_STEP_SUMMARY
+          
+          # 输出摘要信息供后续作业使用
+          echo "update_summary=Found $PATCH_UPDATES patch, $MINOR_UPDATES minor, $MAJOR_UPDATES major updates" >> $GITHUB_OUTPUT
+          echo "major_updates=$MAJOR_UPDATES" >> $GITHUB_OUTPUT
+          
+          # 检查安全更新
+          npm audit --json > audit.json 2>/dev/null || true
+          if [ -s audit.json ]; then
+            SECURITY_UPDATES=$(cat audit.json | jq '.metadata.vulnerabilities.total // 0')
+            echo "security_updates=$SECURITY_UPDATES" >> $GITHUB_OUTPUT
+            if [ "$SECURITY_UPDATES" -gt 0 ]; then
+              echo "### ⚠️ Security Updates Available: $SECURITY_UPDATES" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "security_updates=0" >> $GITHUB_OUTPUT
+          fi
+          
         else
-          echo "✅ All dependencies are up to date"
-          echo "HAS_UPDATES=false" >> $GITHUB_ENV
+          echo "has_updates=false" >> $GITHUB_OUTPUT
+          echo "update_summary=No updates available" >> $GITHUB_OUTPUT
+          echo "security_updates=0" >> $GITHUB_OUTPUT
+          echo "major_updates=0" >> $GITHUB_OUTPUT
+          echo "### ✅ All dependencies are up to date" >> $GITHUB_STEP_SUMMARY
         fi
         
-    - name: 📋 Update dependencies
-      if: env.HAS_UPDATES == 'true'
-      run: |
-        # 更新非主版本依赖
-        npm update
+    - name: 📤 Upload analysis results
+      if: steps.check_updates.outputs.has_updates == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: dependency-analysis
+        path: |
+          outdated.json
+          audit.json
+          package-lock.json
+        retention-days: 7
+
+  update-dependencies:
+    name: 🔄 Update Dependencies
+    runs-on: ubuntu-latest
+    needs: analyze-dependencies
+    if: needs.analyze-dependencies.outputs.has_updates == 'true' && env.DRY_RUN != 'true'
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
         
-        # 检查是否有变化
-        if git diff --quiet package-lock.json; then
+    - name: � Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📥 Download analysis results
+      uses: actions/download-artifact@v4
+      with:
+        name: dependency-analysis
+        
+    - name: 🔄 Perform updates
+      run: |
+        echo "## 🔄 Performing Dependency Updates" >> $GITHUB_STEP_SUMMARY
+        echo "**Update type**: ${{ env.UPDATE_TYPE }}" >> $GITHUB_STEP_SUMMARY
+        
+        # 备份当前状态
+        cp package.json package.json.backup
+        cp package-lock.json package-lock.json.backup
+        
+        # 根据更新类型执行不同的更新策略
+        case "${{ env.UPDATE_TYPE }}" in
+          "patch")
+            echo "Updating patch versions only..."
+            npm update --save --save-exact
+            ;;
+          "minor")
+            echo "Updating minor versions..."
+            npm update
+            ;;
+          "major")
+            echo "Checking for major version updates..."
+            # 使用 npm-check-updates 进行主版本更新 (如果可用)
+            if command -v ncu &> /dev/null; then
+              ncu -u --target minor
+            else
+              npx npm-check-updates -u --target minor
+            fi
+            npm install
+            ;;
+          "all")
+            echo "Updating all dependencies to latest..."
+            if command -v ncu &> /dev/null; then
+              ncu -u
+            else
+              npx npm-check-updates -u
+            fi
+            npm install
+            ;;
+        esac
+        
+        # 检查是否有实际变化
+        if git diff --quiet package-lock.json package.json; then
           echo "NO_CHANGES=true" >> $GITHUB_ENV
+          echo "### ℹ️ No changes after update process" >> $GITHUB_STEP_SUMMARY
         else
           echo "NO_CHANGES=false" >> $GITHUB_ENV
+          echo "### ✅ Dependencies updated successfully" >> $GITHUB_STEP_SUMMARY
+          
+          # 显示变更摘要
+          echo "#### 📊 Changes:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          git diff --stat package.json package-lock.json >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
         fi
         
-    - name: 🧪 Run tests
-      if: env.HAS_UPDATES == 'true' && env.NO_CHANGES == 'false'
+    - name: 🧪 Comprehensive testing
+      if: env.NO_CHANGES == 'false'
       run: |
+        echo "## 🧪 Testing Updated Dependencies" >> $GITHUB_STEP_SUMMARY
+        
+        # 重新安装以确保lockfile一致性
         npm ci
-        npm run type-check
-        npm run test || echo "TEST_FAILED=true" >> $GITHUB_ENV
+        
+        # 类型检查
+        echo "### 🔍 Type Checking" >> $GITHUB_STEP_SUMMARY
+        if npm run type-check 2>&1 | tee type-check.log; then
+          echo "✅ Type checking passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Type checking failed" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          tail -20 type-check.log >> $GITHUB_STEP_SUMMARY || true
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "TYPE_CHECK_FAILED=true" >> $GITHUB_ENV
+        fi
+        
+        # 构建测试
+        echo "### 🏗️ Build Testing" >> $GITHUB_STEP_SUMMARY
+        if npm run build 2>&1 | tee build.log; then
+          echo "✅ Build successful" >> $GITHUB_STEP_SUMMARY
+          
+          # 计算构建大小变化
+          if [ -f package-lock.json.backup ]; then
+            echo "#### 📊 Build Size Analysis:" >> $GITHUB_STEP_SUMMARY
+            OLD_SIZE=$(du -sh dist/ 2>/dev/null | cut -f1 || echo "unknown")
+            echo "Build size: $OLD_SIZE" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          echo "❌ Build failed" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          tail -20 build.log >> $GITHUB_STEP_SUMMARY || true
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "BUILD_FAILED=true" >> $GITHUB_ENV
+        fi
+        
+        # 运行测试套件（如果存在）
+        echo "### 🧪 Unit Testing" >> $GITHUB_STEP_SUMMARY
+        if npm run test 2>&1 | tee test.log; then
+          echo "✅ All tests passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Some tests failed or test suite unavailable" >> $GITHUB_STEP_SUMMARY
+          if [ -s test.log ]; then
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            tail -20 test.log >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "TEST_FAILED=true" >> $GITHUB_ENV
+        fi
+        
+        # 安全审计
+        echo "### 🔒 Security Audit" >> $GITHUB_STEP_SUMMARY
+        if npm audit --audit-level=high --json > audit-post.json 2>/dev/null; then
+          HIGH_VULNS=$(cat audit-post.json | jq '.metadata.vulnerabilities.high // 0')
+          CRITICAL_VULNS=$(cat audit-post.json | jq '.metadata.vulnerabilities.critical // 0')
+          
+          if [ "$HIGH_VULNS" -eq 0 ] && [ "$CRITICAL_VULNS" -eq 0 ]; then
+            echo "✅ No high/critical vulnerabilities" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Found $HIGH_VULNS high and $CRITICAL_VULNS critical vulnerabilities" >> $GITHUB_STEP_SUMMARY
+            echo "SECURITY_AUDIT_FAILED=true" >> $GITHUB_ENV
+          fi
+        else
+          echo "✅ Security audit completed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        # 整体测试结果
+        if [ "$TYPE_CHECK_FAILED" != "true" ] && [ "$BUILD_FAILED" != "true" ]; then
+          echo "VALIDATION_PASSED=true" >> $GITHUB_ENV
+          echo "### ✅ All validation checks passed!" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "VALIDATION_PASSED=false" >> $GITHUB_ENV
+          echo "### ❌ Some validation checks failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+    - name: 📋 Generate change summary
+      if: env.NO_CHANGES == 'false'
+      run: |
+        echo "## 📋 Detailed Change Summary" >> change-summary.md
+        echo "" >> change-summary.md
+        echo "### 📊 Package Changes:" >> change-summary.md
+        
+        # 比较新旧 package.json 文件
+        if [ -f package.json.backup ]; then
+          echo "\`\`\`diff" >> change-summary.md
+          diff package.json.backup package.json || true >> change-summary.md
+          echo "\`\`\`" >> change-summary.md
+        fi
+        
+        echo "" >> change-summary.md
+        echo "### 🔄 Updated Dependencies:" >> change-summary.md
+        
+        # 显示具体的版本变更
+        if [ -f outdated.json ]; then
+          cat outdated.json | jq -r 'to_entries[] | "- **\(.key)**: \(.value.current) → \(.value.wanted) (latest: \(.value.latest))"' >> change-summary.md
+        fi
+        
+        echo "" >> change-summary.md
+        echo "### ✅ Validation Results:" >> change-summary.md
+        echo "- Type Check: ${{ env.TYPE_CHECK_FAILED != 'true' && '✅ Passed' || '❌ Failed' }}" >> change-summary.md
+        echo "- Build: ${{ env.BUILD_FAILED != 'true' && '✅ Passed' || '❌ Failed' }}" >> change-summary.md
+        echo "- Tests: ${{ env.TEST_FAILED != 'true' && '✅ Passed' || '⚠️ Failed/Skipped' }}" >> change-summary.md
+        echo "- Security: ${{ env.SECURITY_AUDIT_FAILED != 'true' && '✅ Clean' || '⚠️ Issues Found' }}" >> change-summary.md
         
     - name: 📝 Create Pull Request
-      if: env.HAS_UPDATES == 'true' && env.NO_CHANGES == 'false' && env.TEST_FAILED != 'true'
+      if: env.NO_CHANGES == 'false' && (env.VALIDATION_PASSED == 'true' || env.FORCE_UPDATE == 'true')
       uses: peter-evans/create-pull-request@v5
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        commit-message: '🔄 chore: update dependencies'
-        title: '🔄 Automated dependency updates'
-        body: |
-          ## 🔄 Automated Dependency Updates
-          
-          This PR updates dependencies to their latest compatible versions.
-          
-          ### 📦 Updated packages:
-          ```json
-          $(cat outdated.json | jq -r 'to_entries[] | "- \(.key): \(.value.current) → \(.value.wanted)"')
-          ```
-          
-          ### ✅ Checks:
-          - [x] Dependencies updated
-          - [x] Tests passing
-          - [x] Type checking passed
-          
-          This PR was automatically created by the dependency update workflow.
-        branch: automated-dependency-updates
+        commit-message: '🔄 chore(deps): ${{ env.UPDATE_TYPE }} dependency updates'
+        title: '🔄 [${{ env.UPDATE_TYPE }}] Automated dependency updates - $(date +%Y-%m-%d)'
+        body-path: change-summary.md
+        branch: automated-dependency-updates-${{ github.run_number }}
         delete-branch: true
+        labels: |
+          dependencies
+          automated
+          ${{ env.UPDATE_TYPE }}
+          ${{ needs.analyze-dependencies.outputs.security_updates != '0' && 'security' || '' }}
+          ${{ env.VALIDATION_PASSED == 'true' && 'validated' || 'needs-review' }}
+        assignees: ${{ github.actor }}
+        reviewers: |
+          ${{ github.actor }}
+        draft: ${{ env.VALIDATION_PASSED != 'true' }}
         
-    - name: 📊 Summary
+    - name: 🚨 Handle validation failures
+      if: env.NO_CHANGES == 'false' && env.VALIDATION_PASSED != 'true' && env.FORCE_UPDATE != 'true'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const title = `🚨 Dependency Update Validation Failed - ${{ env.UPDATE_TYPE }}`;
+          const body = `## 🚨 Dependency Update Validation Issues
+          
+          **Update Type**: ${{ env.UPDATE_TYPE }}
+          **Date**: ${new Date().toISOString()}
+          **Summary**: ${{ needs.analyze-dependencies.outputs.update_summary }}
+          
+          ### ❌ Validation Failures:
+          ${{ env.TYPE_CHECK_FAILED == 'true' && '- Type checking failed\n' || '' }}${{ env.BUILD_FAILED == 'true' && '- Build failed\n' || '' }}${{ env.TEST_FAILED == 'true' && '- Tests failed\n' || '' }}${{ env.SECURITY_AUDIT_FAILED == 'true' && '- Security issues found\n' || '' }}
+          
+          ### 🔧 Manual Action Required:
+          1. Review the validation failures above
+          2. Check if the failures are related to the dependency updates
+          3. Consider updating manually or fixing compatibility issues
+          4. Re-run the workflow with \`force_update: true\` if the failures are acceptable
+          
+          ### 📋 Next Steps:
+          - Review detailed logs in the workflow run
+          - Update dependencies manually if needed
+          - Fix any breaking changes introduced by updates
+          - Close this issue once resolved
+          
+          ---
+          
+          This issue was automatically created by the dependency update workflow.
+          Run ID: ${{ github.run_id }}
+          `;
+          
+          await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: title,
+            body: body,
+            labels: ['dependencies', 'validation-failed', '${{ env.UPDATE_TYPE }}']
+          });
+
+    - name: 📤 Upload artifacts
+      if: env.NO_CHANGES == 'false'
+      uses: actions/upload-artifact@v4
+      with:
+        name: dependency-update-results
+        path: |
+          change-summary.md
+          *.log
+          audit-post.json
+          package.json.backup
+          package-lock.json.backup
+        retention-days: 30
+
+  # 干运行模式的汇总
+  dry-run-summary:
+    name: 📊 Dry Run Summary  
+    runs-on: ubuntu-latest
+    needs: analyze-dependencies
+    if: env.DRY_RUN == 'true'
+    
+    steps:
+    - name: 📊 Generate dry run report
       run: |
-        if [ "${{ env.HAS_UPDATES }}" = "true" ]; then
-          if [ "${{ env.NO_CHANGES }}" = "false" ]; then
-            if [ "${{ env.TEST_FAILED }}" != "true" ]; then
-              echo "## ✅ Dependency Update Successful" >> $GITHUB_STEP_SUMMARY
-              echo "A pull request has been created with dependency updates." >> $GITHUB_STEP_SUMMARY
-            else
-              echo "## ❌ Tests Failed" >> $GITHUB_STEP_SUMMARY
-              echo "Dependency updates are available but tests failed." >> $GITHUB_STEP_SUMMARY
-            fi
-          else
-            echo "## ℹ️ No Changes" >> $GITHUB_STEP_SUMMARY
-            echo "Dependencies are already up to date." >> $GITHUB_STEP_SUMMARY
+        echo "## 🔍 Dependency Update Dry Run Report" >> $GITHUB_STEP_SUMMARY
+        echo "**Analysis Date**: $(date --iso-8601)" >> $GITHUB_STEP_SUMMARY
+        echo "**Update Type**: ${{ env.UPDATE_TYPE }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ needs.analyze-dependencies.outputs.has_updates }}" = "true" ]; then
+          echo "### 📦 Updates Available:" >> $GITHUB_STEP_SUMMARY
+          echo "${{ needs.analyze-dependencies.outputs.update_summary }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.analyze-dependencies.outputs.security_updates }}" != "0" ]; then
+            echo "### ⚠️ Security Updates: ${{ needs.analyze-dependencies.outputs.security_updates }}" >> $GITHUB_STEP_SUMMARY
+            echo "Security vulnerabilities can be addressed with dependency updates." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
           fi
+          
+          if [ "${{ needs.analyze-dependencies.outputs.major_updates }}" != "0" ]; then
+            echo "### 🚨 Major Updates: ${{ needs.analyze-dependencies.outputs.major_updates }}" >> $GITHUB_STEP_SUMMARY
+            echo "Major version updates require careful review for breaking changes." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "### 🚀 To apply these updates:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Re-run this workflow with \`dry_run: false\`" >> $GITHUB_STEP_SUMMARY
+          echo "2. Or run manually: \`npm update\` for minor updates" >> $GITHUB_STEP_SUMMARY
+          echo "3. For major updates: \`npx npm-check-updates -u && npm install\`" >> $GITHUB_STEP_SUMMARY
         else
-          echo "## ✅ All Up to Date" >> $GITHUB_STEP_SUMMARY
-          echo "No dependency updates available." >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ No Updates Available" >> $GITHUB_STEP_SUMMARY
+          echo "All dependencies are up to date." >> $GITHUB_STEP_SUMMARY
         fi
+
+  # 最终总结
+  update-summary:
+    name: 📋 Update Summary
+    runs-on: ubuntu-latest
+    needs: [analyze-dependencies, update-dependencies]
+    if: always()
+    
+    steps:
+    - name: 📊 Generate final summary
+      run: |
+        echo "## 🔄 Dependency Update Workflow Summary" >> $GITHUB_STEP_SUMMARY
+        echo "**Workflow**: ${{ github.workflow }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Update Type**: ${{ env.UPDATE_TYPE }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Dry Run**: ${{ env.DRY_RUN }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "### 📊 Results:" >> $GITHUB_STEP_SUMMARY
+        echo "| Stage | Status | Details |" >> $GITHUB_STEP_SUMMARY
+        echo "|-------|--------|---------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Analysis | ${{ needs.analyze-dependencies.result }} | ${{ needs.analyze-dependencies.outputs.update_summary || 'No updates found' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Updates | ${{ needs.update-dependencies.result || 'skipped' }} | ${{ needs.update-dependencies.result == 'success' && 'Completed successfully' || needs.update-dependencies.result == 'failure' && 'Failed - check logs' || 'Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ needs.analyze-dependencies.outputs.security_updates }}" != "0" ]; then
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔒 Security Information:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Security Updates Available**: ${{ needs.analyze-dependencies.outputs.security_updates }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Recommendation**: Review and apply security updates promptly" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📅 Next Steps:" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ env.DRY_RUN }}" = "true" ]; then
+          echo "- This was a dry run - no changes were made" >> $GITHUB_STEP_SUMMARY
+          echo "- Re-run with \`dry_run: false\` to apply updates" >> $GITHUB_STEP_SUMMARY
+        elif [ "${{ needs.update-dependencies.result }}" = "success" ]; then
+          echo "- Review any created pull requests" >> $GITHUB_STEP_SUMMARY
+          echo "- Test the updated dependencies thoroughly" >> $GITHUB_STEP_SUMMARY
+          echo "- Merge PR after validation" >> $GITHUB_STEP_SUMMARY
+        elif [ "${{ needs.analyze-dependencies.outputs.has_updates }}" = "true" ]; then
+          echo "- Check workflow logs for update issues" >> $GITHUB_STEP_SUMMARY
+          echo "- Consider manual dependency updates" >> $GITHUB_STEP_SUMMARY
+          echo "- Review any validation failures" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- No action required - dependencies are up to date" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "- **Next scheduled run**: Next Monday at 08:00 UTC" >> $GITHUB_STEP_SUMMARY

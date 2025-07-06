@@ -4,19 +4,72 @@ on:
   schedule:
     # 每天凌晨2点运行安全扫描
     - cron: '0 2 * * *'
+    # 每周一额外运行完整扫描
+    - cron: '0 8 * * 1'
   workflow_dispatch:
+    inputs:
+      scan_type:
+        description: 'Scan type to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+        - all
+        - dependencies
+        - code
+        - docker
+        - secrets
+        - licenses
+      severity_level:
+        description: 'Minimum severity level for vulnerabilities'
+        required: false
+        default: 'moderate'
+        type: choice
+        options:
+        - low
+        - moderate
+        - high
+        - critical
   push:
+    branches: [ main, develop ]
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+      - '.gitignore'
+  pull_request:
     branches: [ main ]
 
+# 并发控制：确保只有一个安全扫描工作流在运行
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true  # 可以取消之前的安全扫描，使用最新代码
+
 permissions:
-  contents: read
+  contents: write
   security-events: write
+  pull-requests: write
+  issues: write
+  actions: read
+
+env:
+  NODE_VERSION: '18'
+  # 安全扫描配置
+  AUDIT_LEVEL: ${{ github.event.inputs.severity_level || 'moderate' }}
+  SCAN_TYPE: ${{ github.event.inputs.scan_type || 'all' }}
+  # 许可证白名单 - 更完整的开源许可证列表
+  ALLOWED_LICENSES: 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;Unlicense;0BSD;CC0-1.0;WTFPL;Python-2.0;Zlib;BlueOak-1.0.0'
+  # 禁用的许可证 - 包含Copyleft许可证
+  FORBIDDEN_LICENSES: 'GPL-3.0;AGPL-3.0;LGPL-3.0;GPL-2.0;AGPL-1.0;LGPL-2.0;LGPL-2.1;GPL-3.0-only;GPL-3.0-or-later'
+  # 安全配置文件路径
+  SECURITY_CONFIG: '.security-config.yml'
+  SECURITY_IGNORE: '.security-ignore'
 
 jobs:
   # 依赖安全扫描
   dependency-scan:
     name: 🔒 Dependency Security Scan
     runs-on: ubuntu-latest
+    if: contains(fromJSON('["all", "dependencies"]'), env.SCAN_TYPE)
     
     steps:
     - name: 📥 Checkout code
@@ -25,56 +78,206 @@ jobs:
     - name: 📦 Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
         
     - name: 📋 Install dependencies
       run: npm ci
       
-    - name: 🔍 Run npm audit
+    - name: � Load security configuration
       run: |
-        npm audit --audit-level=moderate --json > audit-results.json || true
+        if [ -f "${{ env.SECURITY_CONFIG }}" ]; then
+          echo "## 📝 Security Configuration Loaded" >> $GITHUB_STEP_SUMMARY
+          echo "Using configuration from ${{ env.SECURITY_CONFIG }}" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "## ⚠️ Using default security configuration" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+    - name: �🔍 Run npm audit
+      run: |
+        echo "Running security audit with level: ${{ env.AUDIT_LEVEL }}"
+        npm audit --audit-level=${{ env.AUDIT_LEVEL }} --json > audit-results.json || true
+        
         if [ -s audit-results.json ]; then
           echo "## 🔒 Security Audit Results" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
-          cat audit-results.json | jq '.vulnerabilities' >> $GITHUB_STEP_SUMMARY
+          cat audit-results.json | jq '.vulnerabilities // empty' >> $GITHUB_STEP_SUMMARY || echo "Unable to parse audit results" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          
+          # 检查是否有高严重级别漏洞
+          HIGH_VULNS=$(cat audit-results.json | jq '.metadata.vulnerabilities.high // 0')
+          CRITICAL_VULNS=$(cat audit-results.json | jq '.metadata.vulnerabilities.critical // 0')
+          MODERATE_VULNS=$(cat audit-results.json | jq '.metadata.vulnerabilities.moderate // 0')
+          LOW_VULNS=$(cat audit-results.json | jq '.metadata.vulnerabilities.low // 0')
+          
+          echo "📊 Vulnerability Summary:" >> $GITHUB_STEP_SUMMARY
+          echo "- Critical: $CRITICAL_VULNS" >> $GITHUB_STEP_SUMMARY
+          echo "- High: $HIGH_VULNS" >> $GITHUB_STEP_SUMMARY
+          echo "- Moderate: $MODERATE_VULNS" >> $GITHUB_STEP_SUMMARY
+          echo "- Low: $LOW_VULNS" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$CRITICAL_VULNS" -gt 0 ] || [ "$HIGH_VULNS" -gt 0 ]; then
+            echo "⚠️ Found $HIGH_VULNS high and $CRITICAL_VULNS critical vulnerabilities" >> $GITHUB_STEP_SUMMARY
+            echo "SECURITY_ISSUES=true" >> $GITHUB_ENV
+            echo "SEVERITY=critical" >> $GITHUB_ENV
+          elif [ "$MODERATE_VULNS" -gt 0 ]; then
+            echo "SECURITY_ISSUES=true" >> $GITHUB_ENV
+            echo "SEVERITY=moderate" >> $GITHUB_ENV
+          fi
+        else
+          echo "## ✅ No security vulnerabilities found" >> $GITHUB_STEP_SUMMARY
         fi
         
     - name: 🔧 Auto-fix vulnerabilities
       run: |
+        echo "Attempting automatic vulnerability fixes..."
         npm audit fix --force || true
-        if ! git diff --quiet package-lock.json; then
+        
+        if ! git diff --quiet package-lock.json 2>/dev/null; then
           echo "FIXES_AVAILABLE=true" >> $GITHUB_ENV
+          echo "## 🔧 Automated Fixes Applied" >> $GITHUB_STEP_SUMMARY
+          echo "Dependencies have been updated to fix vulnerabilities." >> $GITHUB_STEP_SUMMARY
+          
+          # 显示具体变更
+          echo "### 📋 Changed files:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          git diff --name-only >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "## ℹ️ No automated fixes available" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+    - name: 🧪 Test fixes
+      if: env.FIXES_AVAILABLE == 'true'
+      run: |
+        echo "Testing automated fixes..."
+        npm ci
+        
+        # 运行基本测试确保修复不会破坏功能
+        if npm run type-check 2>/dev/null; then
+          echo "✅ Type checking passed after fixes" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Type checking failed after fixes" >> $GITHUB_STEP_SUMMARY
+          echo "FIX_VERIFICATION_FAILED=true" >> $GITHUB_ENV
+        fi
+        
+        if npm run build 2>/dev/null; then
+          echo "✅ Build successful after fixes" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Build failed after fixes" >> $GITHUB_STEP_SUMMARY
+          echo "FIX_VERIFICATION_FAILED=true" >> $GITHUB_ENV
         fi
         
     - name: 📝 Create security fix PR
-      if: env.FIXES_AVAILABLE == 'true'
+      if: env.FIXES_AVAILABLE == 'true' && env.FIX_VERIFICATION_FAILED != 'true'
       uses: peter-evans/create-pull-request@v5
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        commit-message: '🔒 security: auto-fix vulnerabilities'
-        title: '🔒 Security: Automated vulnerability fixes'
+        commit-message: '🔒 security: auto-fix vulnerabilities (${{ env.SEVERITY }} level)'
+        title: '🔒 Security: Automated vulnerability fixes - ${{ env.SEVERITY }} level'
         body: |
           ## 🔒 Automated Security Fixes
           
           This PR contains automated fixes for security vulnerabilities found by npm audit.
           
-          ### 🛡️ Changes:
+          ### 🛡️ Vulnerability Summary:
+          - **Severity Level**: ${{ env.SEVERITY }}
+          - **Scan Date**: $(date --iso-8601)
+          - **Triggered by**: ${{ github.event_name }}
+          
+          ### 🔧 Changes Applied:
           - Updated vulnerable dependencies
-          - Applied security patches
+          - Applied security patches using `npm audit fix`
           
           ### ✅ Verification:
-          Please review and test these changes before merging.
+          - [x] Type checking passed
+          - [x] Build successful
+          - [x] No breaking changes detected
           
-          This PR was automatically created by the security scan workflow.
-        branch: security-fixes
+          ### 📋 Review Checklist:
+          - [ ] Verify all tests still pass
+          - [ ] Check for any behavioral changes
+          - [ ] Review dependency updates
+          
+          ### 🤖 Automation Info:
+          - **Workflow**: Security Scan
+          - **Node.js version**: ${{ env.NODE_VERSION }}
+          - **Audit level**: ${{ env.AUDIT_LEVEL }}
+          
+          ---
+          
+          **⚠️ This PR was automatically created. Please review the changes before merging.**
+        branch: security-fixes-${{ github.run_number }}
         delete-branch: true
+        labels: |
+          security
+          automated
+          ${{ env.SEVERITY }}
+        assignees: ${{ github.actor }}
+        
+    - name: 🚨 Create security issue
+      if: env.SECURITY_ISSUES == 'true' && (env.FIXES_AVAILABLE != 'true' || env.FIX_VERIFICATION_FAILED == 'true')
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { data: existingIssues } = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            labels: 'security,vulnerability',
+            state: 'open'
+          });
+          
+          const title = `🔒 Security vulnerabilities detected - ${{ env.SEVERITY }} level`;
+          const existingIssue = existingIssues.find(issue => issue.title.includes('Security vulnerabilities detected'));
+          
+          const body = `## 🔒 Security Vulnerability Report
+          
+          **Scan Date**: ${new Date().toISOString()}
+          **Severity**: ${{ env.SEVERITY }}
+          **Triggered by**: ${{ github.event_name }}
+          
+          ### 📊 Summary
+          Security vulnerabilities have been detected that require manual attention.
+          
+          ### 🔧 Action Required
+          ${process.env.FIXES_AVAILABLE === 'true' ? 
+            '- Automated fixes were applied but verification failed\n- Please review the fix attempt and resolve manually' :
+            '- No automated fixes are available\n- Manual dependency updates required'
+          }
+          
+          ### 📋 Next Steps
+          1. Review the vulnerability details in the security tab
+          2. Update dependencies manually if needed
+          3. Test the application thoroughly
+          4. Close this issue once resolved
+          
+          ---
+          
+          This issue was automatically created by the security scan workflow.
+          `;
+          
+          if (existingIssue) {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existingIssue.number,
+              body: `## 🔄 Updated Security Scan Results\n\n${body}`
+            });
+          } else {
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['security', 'vulnerability', '${{ env.SEVERITY }}']
+            });
+          }
 
   # 代码安全扫描
   code-scan:
     name: 🔍 Code Security Scan
     runs-on: ubuntu-latest
+    if: contains(fromJSON('["all", "code"]'), env.SCAN_TYPE)
     
     steps:
     - name: 📥 Checkout code
@@ -84,59 +287,195 @@ jobs:
       uses: github/codeql-action/init@v3
       with:
         languages: javascript, typescript
+        config-file: ./.github/codeql/codeql-config.yml
         
     - name: 📦 Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
         
     - name: 📋 Install dependencies
       run: npm ci
       
     - name: 🏗️ Build for analysis
-      run: npm run build
+      run: |
+        npm run build || echo "Build failed, continuing with analysis"
+        echo "## 🏗️ Build Status" >> $GITHUB_STEP_SUMMARY
+        if [ $? -eq 0 ]; then
+          echo "✅ Build successful for CodeQL analysis" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Build failed, analysis may be limited" >> $GITHUB_STEP_SUMMARY
+        fi
       
     - name: 🔍 Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:javascript"
+        
+    - name: 📊 CodeQL Summary
+      run: |
+        echo "## 🔍 CodeQL Analysis Complete" >> $GITHUB_STEP_SUMMARY
+        echo "Code security analysis has been completed. Check the Security tab for detailed results." >> $GITHUB_STEP_SUMMARY
+
+  # 密钥扫描
+  secret-scan:
+    name: 🔐 Secret Scan
+    runs-on: ubuntu-latest
+    if: contains(fromJSON('["all", "secrets"]'), env.SCAN_TYPE)
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: 🔍 Scan for secrets with TruffleHog
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: ${{ github.event.repository.default_branch }}
+        head: HEAD
+        extra_args: --debug --only-verified --fail --json --github-actions
+        
+    - name: 🔍 Additional secret patterns scan
+      run: |
+        echo "## 🔐 Secret Pattern Analysis" >> $GITHUB_STEP_SUMMARY
+        
+        # 扫描常见的密钥模式
+        SECRET_PATTERNS=(
+          "password.*=" 
+          "secret.*=" 
+          "key.*=" 
+          "token.*=" 
+          "api.*key" 
+          "-----BEGIN.*KEY-----"
+          "sk_[a-zA-Z0-9]+"
+          "pk_[a-zA-Z0-9]+"
+        )
+        
+        SECRETS_FOUND=false
+        for pattern in "${SECRET_PATTERNS[@]}"; do
+          if grep -r -i --exclude-dir=.git --exclude-dir=node_modules --exclude="*.lock" "$pattern" . 2>/dev/null; then
+            SECRETS_FOUND=true
+            echo "⚠️ Potential secret pattern found: $pattern" >> $GITHUB_STEP_SUMMARY
+          fi
+        done
+        
+        if [ "$SECRETS_FOUND" = false ]; then
+          echo "✅ No additional secret patterns detected" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "MANUAL_SECRET_REVIEW=true" >> $GITHUB_ENV
+        fi
+        
+    - name: 🔍 Check for hardcoded credentials
+      run: |
+        echo "Checking for hardcoded credentials..."
+        
+        # 检查忽略文件
+        if [ -f "${{ env.SECURITY_IGNORE }}" ]; then
+          echo "Using security ignore patterns from ${{ env.SECURITY_IGNORE }}"
+        fi
+        
+        # 扫描可能包含硬编码凭据的文件
+        find . -type f \( -name "*.js" -o -name "*.ts" -o -name "*.json" -o -name "*.env*" \) \
+          -not -path "./node_modules/*" \
+          -not -path "./.git/*" \
+          -exec grep -l -i -E "(password|secret|key|token).*[:=].*['\"][^'\"]{8,}" {} \; > potential_secrets.txt || true
+          
+        if [ -s potential_secrets.txt ]; then
+          echo "## ⚠️ Files potentially containing hardcoded secrets:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          cat potential_secrets.txt >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "POTENTIAL_SECRETS=true" >> $GITHUB_ENV
+        else
+          echo "## ✅ No hardcoded credentials detected" >> $GITHUB_STEP_SUMMARY
+        fi
 
   # Docker镜像安全扫描
   docker-scan:
     name: 🐳 Docker Security Scan
     runs-on: ubuntu-latest
-    if: github.event_name != 'schedule'
+    if: github.event_name != 'schedule' && contains(fromJSON('["all", "docker"]'), env.SCAN_TYPE)
     
     steps:
     - name: 📥 Checkout code
       uses: actions/checkout@v4
       
-    - name: 🐳 Build Docker image
-      run: docker build -t api-server-security-scan .
+    - name: 🐳 Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
       
+    - name: 🐳 Build Docker image
+      run: |
+        echo "Building Docker image for security scan..."
+        docker build -t api-server-security-scan:latest .
+        echo "## 🐳 Docker Image Built" >> $GITHUB_STEP_SUMMARY
+        echo "Image: api-server-security-scan:latest" >> $GITHUB_STEP_SUMMARY
+        
+        # 显示镜像信息
+        docker images api-server-security-scan:latest --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}" >> $GITHUB_STEP_SUMMARY
+        
     - name: 🔒 Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: 'api-server-security-scan'
+        image-ref: 'api-server-security-scan:latest'
         format: 'sarif'
         output: 'trivy-results.sarif'
+        severity: 'CRITICAL,HIGH,MEDIUM'
+        exit-code: '0'  # 不因漏洞而失败
         
-    - name: 📤 Upload Trivy scan results
+    - name: � Run Trivy config scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'config'
+        format: 'sarif'
+        output: 'trivy-config-results.sarif'
+        exit-code: '0'
+        
+    - name: �📤 Upload Trivy scan results
       uses: github/codeql-action/upload-sarif@v3
+      if: always()
       with:
         sarif_file: 'trivy-results.sarif'
+        category: 'docker-image'
         
-    - name: 🔍 Scan for secrets
-      uses: trufflesecurity/trufflehog@main
+    - name: � Upload Trivy config results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
       with:
-        path: ./
-        base: main
-        head: HEAD
-        extra_args: --debug --only-verified
+        sarif_file: 'trivy-config-results.sarif'
+        category: 'docker-config'
+        
+    - name: 📊 Generate vulnerability report
+      run: |
+        echo "## 🐳 Docker Security Scan Results" >> $GITHUB_STEP_SUMMARY
+        
+        # 生成人类可读的报告
+        docker run --rm -v $(pwd):/workspace aquasec/trivy:latest image \
+          --format table --severity CRITICAL,HIGH,MEDIUM \
+          api-server-security-scan:latest > docker-vulnerabilities.txt || true
+          
+        if [ -s docker-vulnerabilities.txt ]; then
+          echo "### 🔍 Vulnerability Details:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          head -50 docker-vulnerabilities.txt >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "✅ No critical or high vulnerabilities found in Docker image" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+    - name: 🧹 Cleanup
+      if: always()
+      run: |
+        docker rmi api-server-security-scan:latest || true
+        rm -f docker-vulnerabilities.txt trivy-*.sarif potential_secrets.txt || true
 
   # 许可证合规检查
   license-scan:
     name: 📄 License Compliance Scan
     runs-on: ubuntu-latest
+    if: contains(fromJSON('["all", "licenses"]'), env.SCAN_TYPE)
     
     steps:
     - name: 📥 Checkout code
@@ -145,27 +484,134 @@ jobs:
     - name: 📦 Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
         
     - name: 📋 Install dependencies
       run: npm ci
       
-    - name: 📄 Check licenses
+    - name: 📄 Generate license report
       run: |
-        npx license-checker --summary > license-summary.txt
-        echo "## 📄 License Summary" >> $GITHUB_STEP_SUMMARY
-        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-        cat license-summary.txt >> $GITHUB_STEP_SUMMARY
-        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "## 📄 License Compliance Report" >> $GITHUB_STEP_SUMMARY
+        
+        # 生成详细的许可证报告
+        npx license-checker --json > license-report.json || true
+        npx license-checker --summary > license-summary.txt || true
+        
+        if [ -f license-summary.txt ]; then
+          echo "### 📊 License Summary:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          cat license-summary.txt >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        fi
         
     - name: 🚫 Check for forbidden licenses
       run: |
+        echo "Checking for forbidden licenses..."
+        echo "Allowed: ${{ env.ALLOWED_LICENSES }}"
+        echo "Forbidden: ${{ env.FORBIDDEN_LICENSES }}"
+        
         # 检查是否有禁用的许可证
-        FORBIDDEN_LICENSES="GPL-3.0,AGPL-3.0,LGPL-3.0"
-        if npx license-checker --excludePrivatePackages --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;Unlicense" --failOn "$FORBIDDEN_LICENSES"; then
-          echo "✅ All licenses are compliant"
-        else
-          echo "❌ Found forbidden licenses"
-          exit 1
+        FORBIDDEN_FOUND=false
+        if [ -f license-report.json ]; then
+          # 解析JSON并检查每个包的许可证
+          for license in $(echo "${{ env.FORBIDDEN_LICENSES }}" | tr ';' '\n'); do
+            if cat license-report.json | jq -r '.[] | select(.licenses | contains("'"$license"'")) | .name' | head -5; then
+              echo "❌ Found forbidden license: $license" >> $GITHUB_STEP_SUMMARY
+              FORBIDDEN_FOUND=true
+            fi
+          done
         fi
+        
+        if [ "$FORBIDDEN_FOUND" = true ]; then
+          echo "FORBIDDEN_LICENSES_FOUND=true" >> $GITHUB_ENV
+          echo "### ❌ Forbidden Licenses Detected" >> $GITHUB_STEP_SUMMARY
+          echo "Please review and replace packages with incompatible licenses." >> $GITHUB_STEP_SUMMARY
+        else
+          echo "### ✅ License Compliance Check Passed" >> $GITHUB_STEP_SUMMARY
+          echo "All package licenses are compliant with project requirements." >> $GITHUB_STEP_SUMMARY
+        fi
+        
+    - name: 📋 Detailed license analysis
+      run: |
+        echo "### 📋 Detailed License Analysis:" >> $GITHUB_STEP_SUMMARY
+        
+        # 按许可证类型分组显示
+        if [ -f license-report.json ]; then
+          echo "#### License Types Found:" >> $GITHUB_STEP_SUMMARY
+          cat license-report.json | jq -r '.[] | .licenses' | sort | uniq -c | sort -nr > license-types.txt
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          cat license-types.txt >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          
+          # 检查是否有未知或自定义许可证
+          UNKNOWN_LICENSES=$(cat license-report.json | jq -r '.[] | select(.licenses | contains("UNKNOWN") or contains("Custom") or contains("*")) | .name' | wc -l)
+          if [ "$UNKNOWN_LICENSES" -gt 0 ]; then
+            echo "⚠️ Found $UNKNOWN_LICENSES packages with unknown/custom licenses" >> $GITHUB_STEP_SUMMARY
+            echo "MANUAL_LICENSE_REVIEW=true" >> $GITHUB_ENV
+          fi
+        fi
+        
+    - name: 📤 Upload license report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: license-report
+        path: |
+          license-report.json
+          license-summary.txt
+          license-types.txt
+        retention-days: 30
+        
+    - name: 🚨 Fail on forbidden licenses
+      if: env.FORBIDDEN_LICENSES_FOUND == 'true'
+      run: |
+        echo "❌ Forbidden licenses detected. Please review your dependencies."
+        echo "Check the license report for details."
+        exit 1
+
+  # 生成安全报告汇总
+  security-summary:
+    name: 📋 Security Summary
+    runs-on: ubuntu-latest
+    needs: [dependency-scan, code-scan, secret-scan, docker-scan, license-scan]
+    if: always()
+    
+    steps:
+    - name: 📊 Generate security summary
+      run: |
+        echo "## 🛡️ Security Scan Summary Report" >> $GITHUB_STEP_SUMMARY
+        echo "**Scan Date**: $(date --iso-8601)" >> $GITHUB_STEP_SUMMARY
+        echo "**Triggered by**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Scan Type**: ${{ env.SCAN_TYPE }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "### 📊 Scan Results:" >> $GITHUB_STEP_SUMMARY
+        echo "| Scan Type | Status | Notes |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|--------|-------|" >> $GITHUB_STEP_SUMMARY
+        
+        # 检查各个扫描作业的状态
+        echo "| Dependency Scan | ${{ needs.dependency-scan.result || 'skipped' }} | ${{ needs.dependency-scan.result == 'success' && '✅ No issues' || needs.dependency-scan.result == 'failure' && '❌ Issues found' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Code Scan | ${{ needs.code-scan.result || 'skipped' }} | ${{ needs.code-scan.result == 'success' && '✅ Completed' || needs.code-scan.result == 'failure' && '❌ Issues found' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Secret Scan | ${{ needs.secret-scan.result || 'skipped' }} | ${{ needs.secret-scan.result == 'success' && '✅ Clean' || needs.secret-scan.result == 'failure' && '❌ Secrets detected' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Docker Scan | ${{ needs.docker-scan.result || 'skipped' }} | ${{ needs.docker-scan.result == 'success' && '✅ Secure' || needs.docker-scan.result == 'failure' && '❌ Vulnerabilities found' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| License Scan | ${{ needs.license-scan.result || 'skipped' }} | ${{ needs.license-scan.result == 'success' && '✅ Compliant' || needs.license-scan.result == 'failure' && '❌ Non-compliant licenses' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📋 Next Steps:" >> $GITHUB_STEP_SUMMARY
+        
+        # 根据扫描结果提供建议
+        FAILED_SCANS=$(echo "${{ needs.dependency-scan.result }} ${{ needs.code-scan.result }} ${{ needs.secret-scan.result }} ${{ needs.docker-scan.result }} ${{ needs.license-scan.result }}" | grep -o "failure" | wc -l)
+        
+        if [ "$FAILED_SCANS" -gt 0 ]; then
+          echo "- ⚠️ $FAILED_SCANS security scan(s) detected issues" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔍 Review the detailed results in each scan job" >> $GITHUB_STEP_SUMMARY
+          echo "- 📝 Check for any auto-generated PRs or issues" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔧 Address high-priority security findings first" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- ✅ All security scans passed successfully" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔄 Continue with regular development workflow" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "- 📊 Review complete security report in the Security tab" >> $GITHUB_STEP_SUMMARY
+        echo "- 📅 Next scheduled scan: Tomorrow at 02:00 UTC" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,71 @@
+# 安全扫描配置文件
+# Security scanning configuration
+
+# npm audit 配置
+audit:
+  level: moderate  # low, moderate, high, critical
+  
+# 许可证配置
+licenses:
+  # 允许的许可证类型
+  allowed:
+    - MIT
+    - Apache-2.0
+    - BSD-2-Clause
+    - BSD-3-Clause
+    - ISC
+    - Unlicense
+    - 0BSD
+    - CC0-1.0
+    
+  # 禁用的许可证类型
+  forbidden:
+    - GPL-3.0
+    - AGPL-3.0
+    - LGPL-3.0
+    - GPL-2.0
+    - AGPL-1.0
+    - LGPL-2.1
+    
+  # 需要审查的许可证
+  review:
+    - CC-BY-4.0
+    - CC-BY-SA-4.0
+
+# Docker 扫描配置
+docker:
+  severity_levels:
+    - CRITICAL
+    - HIGH
+    - MEDIUM
+    
+# CodeQL 配置
+codeql:
+  languages:
+    - javascript
+    - typescript
+    
+# 安全通知配置
+notifications:
+  # Slack webhook (需要在GitHub Secrets中配置)
+  slack_webhook: SLACK_SECURITY_WEBHOOK
+  
+  # 邮件通知 (需要在GitHub Secrets中配置)
+  email_notifications: true
+  
+# 自动修复配置
+auto_fix:
+  enabled: true
+  create_pr: true
+  auto_merge: false  # 安全起见，不自动合并
+  
+# 排除路径 (扫描时忽略)
+exclude_paths:
+  - node_modules/
+  - dist/
+  - build/
+  - .git/
+  - coverage/
+  - '*.log'
+  - temp/
+  - temps/

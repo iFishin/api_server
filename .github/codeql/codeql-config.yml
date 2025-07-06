@@ -1,0 +1,88 @@
+name: "CodeQL Security Analysis"
+
+# 查询配置
+queries:
+  - name: security-extended
+    uses: security-extended
+  - name: security-and-quality  
+    uses: security-and-quality
+  - name: code-scanning
+    uses: code-scanning
+
+# 路径过滤器
+paths-ignore:
+  - dist/
+  - build/
+  - coverage/
+  - node_modules/
+  - "**/*.test.js"
+  - "**/*.test.ts"
+  - "**/*.spec.js"
+  - "**/*.spec.ts"
+  - docs/
+  - "**/*.md"
+
+paths:
+  - src/
+  - server/
+  - "*.js"
+  - "*.ts"
+
+# 禁用的查询（如果某些查询产生过多噪音）
+disable-default-queries: false
+
+# 自定义查询包
+query-filters:
+  - include:
+      kind: problem
+      problem.severity: ["error", "warning"]
+  - exclude:
+      id: 
+        - js/unused-local-variable  # 如果这个查询太吵
+        - js/debugger-statement      # 允许调试语句在开发中
+
+# 扫描配置
+analyze:
+  # 分析超时（分钟）
+  timeout-minutes: 20
+  
+  # 内存限制
+  ram: 4096
+  
+  # 线程数
+  threads: 2
+
+# 结果处理
+result-filters:
+  # 过滤低严重性问题
+  - exclude:
+      severity: note
+  
+  # 包含特定类型的安全问题
+  - include:
+      security-severity: ["high", "critical", "medium"]
+
+# 外部库配置
+external-repository-token: ${{ secrets.GITHUB_TOKEN }}
+
+# 语言特定配置
+javascript:
+  # 包含 TypeScript 文件
+  identify-environment: true
+  
+  # 构建模式
+  build-mode: autobuild
+  
+  # 额外的源根目录
+  source-root: .
+  
+  # 包含的文件扩展名
+  extensions:
+    - .js
+    - .ts
+    - .vue
+    - .jsx
+    - .tsx
+
+# 调试选项（仅在需要时启用）
+debug: false

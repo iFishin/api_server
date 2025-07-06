@@ -1,0 +1,48 @@
+# 安全扫描忽略文件
+# Security scan ignore patterns
+
+# 开发依赖的误报
+devDependencies:
+  # 开发工具相关的低风险问题
+  - "vite*"
+  - "vue-devtools*"
+  
+# 测试文件
+test_files:
+  - "test/**"
+  - "tests/**"
+  - "**/*.test.js"
+  - "**/*.test.ts"
+  - "**/*.spec.js"
+  - "**/*.spec.ts"
+  
+# 配置文件
+config_files:
+  - "*.config.js"
+  - "*.config.ts"
+  - "vite.config.*"
+  - "tsconfig*.json"
+  
+# 构建文件
+build_files:
+  - "dist/**"
+  - "build/**"
+  - "node_modules/**"
+  
+# 日志和临时文件
+temp_files:
+  - "*.log"
+  - "logs/**"
+  - "temps/**"
+  - "temp/**"
+  - ".cache/**"
+
+# 证书文件 (开发环境)
+dev_certs:
+  - "server/certs/*.crt"
+  - "server/certs/*.key"
+  - "server/certs/*.pem"
+  
+# 特定CVE忽略 (仅在确认安全的情况下使用)
+# cve_ignore:
+#   - "CVE-2024-xxxxx"  # 示例：已验证不影响我们的使用场景
