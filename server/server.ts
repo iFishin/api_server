@@ -46,7 +46,8 @@ async function startServer() {
             hasCert = true;
         } catch {}
 
-        if (hasCert) {
+        if (hasCert && isProduction) {
+            // 生产环境：HTTPS + HTTP (都提供完整服务)
             const options = {
                 key: fs.readFileSync(SSL_KEY),
                 cert: fs.readFileSync(SSL_CERT)
@@ -55,17 +56,28 @@ async function startServer() {
             https.createServer(options, app).listen(HTTPS_PORT, '0.0.0.0', () => {
                 console.log(`🔒 HTTPS Server is running on https://0.0.0.0:${HTTPS_PORT}`);
             });
-            // HTTP 服务器（重定向到 HTTPS）
-            const redirectApp = require('express')();
-            redirectApp.use((req: any, res: any) => {
-                res.redirect(301, `https://${req.header('host').replace(/:\d+/, `:${HTTPS_PORT}`)}${req.url}`);
+            // HTTP 服务器（提供完整服务，便于 Nginx 代理）
+            app.listen(HTTP_PORT, '0.0.0.0', () => {
+                console.log(`🌐 HTTP Server is running on http://0.0.0.0:${HTTP_PORT}`);
+                console.log(`💡 Production mode: Both HTTP and HTTPS available`);
             });
-            redirectApp.listen(HTTP_PORT, '0.0.0.0', () => {
-                console.log(`🌐 HTTP Server (redirect) is running on http://0.0.0.0:${HTTP_PORT}`);
-                console.log(`💡 All HTTP traffic will be redirected to HTTPS`);
+        } else if (hasCert && !isProduction) {
+            // 开发环境：同时运行 HTTP 和 HTTPS
+            const options = {
+                key: fs.readFileSync(SSL_KEY),
+                cert: fs.readFileSync(SSL_CERT)
+            };
+            // HTTPS 服务器
+            https.createServer(options, app).listen(HTTPS_PORT, '0.0.0.0', () => {
+                console.log(`🔒 HTTPS Server is running on https://0.0.0.0:${HTTPS_PORT}`);
+            });
+            // HTTP 服务器（直接提供服务，不重定向）
+            app.listen(HTTP_PORT, '0.0.0.0', () => {
+                console.log(`🌐 HTTP Server is running on http://0.0.0.0:${HTTP_PORT}`);
+                console.log(`💡 Development mode: Both HTTP and HTTPS available`);
             });
         } else {
-            // 仅 HTTP 服务器
+            // 没有证书：仅 HTTP 服务器
             app.listen(HTTP_PORT, '0.0.0.0', () => {
                 console.log(`🌐 HTTP Server is running on http://0.0.0.0:${HTTP_PORT}`);
                 console.log(`💡 Environment: ${isProduction ? 'production' : 'development'}`);

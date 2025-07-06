@@ -23,9 +23,6 @@ onMounted(() => {
 
 <style scoped>
 .users-api-view {
-  width: 100%;
-  min-height: 100vh;
-  padding: 1rem;
-  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 50%, #f0fdf4 100%);
+  padding: 0 1rem;
 }
 </style>

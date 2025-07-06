@@ -6,14 +6,23 @@ const getApiBaseUrl = (): string => {
   
   console.log('Current location:', { protocol, hostname, port });
   
+  // 检查是否为开发环境
+  const isDev = import.meta.env.DEV;
+  const envApiUrl = import.meta.env.VITE_API_BASE_URL;
+  
+  // 如果有环境变量设置的API URL，优先使用
+  if (envApiUrl) {
+    return envApiUrl;
+  }
+  
+  // 在开发环境下，使用空字符串让 Vite 代理处理
+  if (isDev && (port === '5173' || port === '8080')) {
+    console.log('🔧 Development mode: Using empty baseURL for Vite proxy');
+    return '';
+  }
+  
   // 根据当前环境动态确定API地址
-  if (port === '5173') {
-    // Vite 开发服务器 - 使用代理或直接连接后端
-    return 'http://localhost:3000';
-  } else if (port === '8080') {
-    // Vue CLI 开发服务器
-    return 'http://localhost:3000';
-  } else if (port === '3000') {
+  if (port === '3000') {
     // 直接访问3000端口 - API和前端在同一服务器同一端口
     return `${protocol}//${hostname}:3000`;
   } else if (port === '80' || port === '' || !port) {

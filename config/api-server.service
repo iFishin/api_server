@@ -1,0 +1,38 @@
+[Unit]
+Description=API Server Node.js Application
+Documentation=https://github.com/your-username/api-server
+After=network.target nginx.service
+Wants=nginx.service
+
+[Service]
+Type=simple
+User=yiyuan
+Group=yiyuan
+WorkingDirectory=/usr/api_server/dist
+ExecStart=/usr/bin/node server/server.js
+ExecReload=/bin/kill -USR1 $MAINPID
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=api-server
+
+# 环境变量
+Environment=NODE_ENV=production
+Environment=HTTP_PORT=3000
+Environment=HTTPS_PORT=3443
+
+# 安全设置
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/usr/api_server/dist/server/temps
+ReadWritePaths=/usr/api_server/logs
+
+# 资源限制
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target

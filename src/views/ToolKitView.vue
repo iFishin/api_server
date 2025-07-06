@@ -4,7 +4,7 @@
     <div v-if="shouldShowHeader" class="toolkit-header">
       <!-- 背景装饰 -->
       <div class="header-background">
-        <div class="bg-pattern"></div>
+        
         <div class="floating-icons">
           <div class="float-icon" style="--delay: 0s; --x: 10%; --y: 20%;">
             <i class="fas fa-code"></i>
@@ -208,9 +208,9 @@
               </div>
             </div>
             <div class="tool-header-actions">
-              <button @click="closeTool" class="close-btn" title="返回工具列表">
+              <button @click="closeTool" class="close-btn" title="Back to tools">
                 <i class="fas fa-arrow-left"></i>
-                <span>返回</span>
+                <span>Back</span>
               </button>
             </div>
           </div>
@@ -498,47 +498,17 @@
   .toolkit-view {
     width: 100%;
     border-radius: 12px;
-    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 50%, #f0fdf4 100%);
   }
 
   /* 页面头部样式 */
   .toolkit-header {
     position: relative;
-    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 50%, #f0fdf4 100%);
     overflow: hidden;
     padding: 3rem 1.5rem 2rem;
     margin-bottom: 0;
     border-radius: 12px;
     border: 1px solid rgba(16, 185, 129, 0.1);
     box-shadow: 0 8px 32px rgba(16, 185, 129, 0.08);
-  }
-
-  /* 背景装饰 */
-  .header-background {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    pointer-events: none;
-  }
-
-  .bg-pattern {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: 
-      radial-gradient(circle at 25% 25%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
-      radial-gradient(circle at 75% 75%, rgba(34, 197, 94, 0.06) 0%, transparent 50%);
-    background-size: 100px 100px;
-    animation: patternFloat 20s ease-in-out infinite;
-  }
-
-  @keyframes patternFloat {
-    0%, 100% { transform: translateY(0) rotate(0deg); }
-    50% { transform: translateY(-10px) rotate(2deg); }
   }
 
   .floating-icons {
@@ -564,6 +534,8 @@
     border: 1px solid rgba(16, 185, 129, 0.2);
     animation: floatAround 6s ease-in-out infinite;
     animation-delay: var(--delay);
+    will-change: transform;
+    transform: translateZ(0);
   }
 
   .float-icon i {
@@ -572,10 +544,18 @@
   }
 
   @keyframes floatAround {
-    0%, 100% { transform: translateY(0) rotate(0deg); }
-    25% { transform: translateY(-15px) rotate(5deg); }
-    50% { transform: translateY(-8px) rotate(-3deg); }
-    75% { transform: translateY(-20px) rotate(8deg); }
+    0%, 100% { 
+      transform: translate3d(0, 0, 0) rotate(0deg); 
+    }
+    25% { 
+      transform: translate3d(0, -15px, 0) rotate(5deg); 
+    }
+    50% { 
+      transform: translate3d(0, -8px, 0) rotate(-3deg); 
+    }
+    75% { 
+      transform: translate3d(0, -20px, 0) rotate(8deg); 
+    }
   }
 
   .header-content {
@@ -1169,7 +1149,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 2rem 2rem 1.75rem 2rem;
+    padding: 1rem 0.5rem;
+    padding-top: 5rem;
     min-height: 120px;
     border-bottom: 1px solid #e2e8f0;
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
@@ -1344,6 +1325,361 @@
     font-weight: 600;
   }
 
+  /* ============================================
+     统一工具组件样式 - 确保所有工具具有一致外观
+     ============================================ */
+  
+  /* 工具容器基础样式 */
+  :deep(.json-formatter),
+  :deep(.base64-converter),
+  :deep(.url-encoder),
+  :deep(.hash-generator),
+  :deep(.uuid-generator),
+  :deep(.timestamp-converter),
+  :deep(.string-generator),
+  :deep(.jira-extractor) {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+    background: #ffffff;
+    overflow: auto;
+  }
+
+  /* 工具布局 */
+  :deep(.tool-layout),
+  :deep(.converter-layout),
+  :deep(.generator-layout),
+  :deep(.encoder-layout) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* 区块样式 */
+  :deep(.input-section),
+  :deep(.output-section),
+  :deep(.encode-section),
+  :deep(.decode-section),
+  :deep(.result-section),
+  :deep(.options-section),
+  :deep(.generation-section),
+  :deep(.batch-section),
+  :deep(.algorithm-section),
+  :deep(.comparison-section),
+  :deep(.integrity-section) {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    transition: all 0.2s ease;
+    height: 100%; /* 添加最大高度限制 */
+  }
+
+  :deep(.input-section):hover,
+  :deep(.output-section):hover,
+  :deep(.encode-section):hover,
+  :deep(.decode-section):hover,
+  :deep(.generation-section):hover,
+  :deep(.batch-section):hover {
+    border-color: #10b981;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
+  }
+
+  /* 区块头部 */
+  :deep(.section-header) {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  :deep(.section-header h3) {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* 区块内容区域滚动支持 */
+  :deep(.input-section > *:not(.section-header)),
+  :deep(.output-section > *:not(.section-header)),
+  :deep(.result-section > *:not(.section-header)),
+  :deep(.generation-section > *:not(.section-header)),
+  :deep(.batch-section > *:not(.section-header)) {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 10px;
+    max-height: calc(100vh - 60px); /* 减去头部高度 */
+  }
+
+  /* 滚动条样式 */
+  :deep(.input-section > *:not(.section-header))::-webkit-scrollbar,
+  :deep(.output-section > *:not(.section-header))::-webkit-scrollbar,
+  :deep(.result-section > *:not(.section-header))::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  :deep(.input-section > *:not(.section-header))::-webkit-scrollbar-track,
+  :deep(.output-section > *:not(.section-header))::-webkit-scrollbar-track,
+  :deep(.result-section > *:not(.section-header))::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+  }
+
+  :deep(.input-section > *:not(.section-header))::-webkit-scrollbar-thumb,
+  :deep(.output-section > *:not(.section-header))::-webkit-scrollbar-thumb,
+  :deep(.result-section > *:not(.section-header))::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+  }
+
+  :deep(.input-section > *:not(.section-header))::-webkit-scrollbar-thumb:hover,
+  :deep(.output-section > *:not(.section-header))::-webkit-scrollbar-thumb:hover,
+  :deep(.result-section > *:not(.section-header))::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+
+  /* 为输入输出 textarea 添加专用滚动条样式 */
+  :deep(.input-textarea)::-webkit-scrollbar,
+  :deep(.json-input)::-webkit-scrollbar,
+  :deep(textarea)::-webkit-scrollbar,
+  :deep(.output-textarea)::-webkit-scrollbar,
+  :deep(.json-output)::-webkit-scrollbar,
+  :deep(.result-output)::-webkit-scrollbar,
+  :deep(.hash-output)::-webkit-scrollbar,
+  :deep(.bulk-output)::-webkit-scrollbar,
+  :deep(pre)::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  :deep(.input-textarea)::-webkit-scrollbar-track,
+  :deep(.json-input)::-webkit-scrollbar-track,
+  :deep(textarea)::-webkit-scrollbar-track,
+  :deep(.output-textarea)::-webkit-scrollbar-track,
+  :deep(.json-output)::-webkit-scrollbar-track,
+  :deep(.result-output)::-webkit-scrollbar-track,
+  :deep(.hash-output)::-webkit-scrollbar-track,
+  :deep(.bulk-output)::-webkit-scrollbar-track,
+  :deep(pre)::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+    margin: 4px;
+  }
+
+  :deep(.input-textarea)::-webkit-scrollbar-thumb,
+  :deep(.json-input)::-webkit-scrollbar-thumb,
+  :deep(textarea)::-webkit-scrollbar-thumb,
+  :deep(.output-textarea)::-webkit-scrollbar-thumb,
+  :deep(.json-output)::-webkit-scrollbar-thumb,
+  :deep(.result-output)::-webkit-scrollbar-thumb,
+  :deep(.hash-output)::-webkit-scrollbar-thumb,
+  :deep(.bulk-output)::-webkit-scrollbar-thumb,
+  :deep(pre)::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+  }
+
+  :deep(.input-textarea)::-webkit-scrollbar-thumb:hover,
+  :deep(.json-input)::-webkit-scrollbar-thumb:hover,
+  :deep(textarea)::-webkit-scrollbar-thumb:hover,
+  :deep(.output-textarea)::-webkit-scrollbar-thumb:hover,
+  :deep(.json-output)::-webkit-scrollbar-thumb:hover,
+  :deep(.result-output)::-webkit-scrollbar-thumb:hover,
+  :deep(.hash-output)::-webkit-scrollbar-thumb:hover,
+  :deep(.bulk-output)::-webkit-scrollbar-thumb:hover,
+  :deep(pre)::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+
+  /* 统一按钮样式 */
+  :deep(.btn) {
+    padding: 0.5rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    min-height: 36px;
+    white-space: nowrap;
+  }
+
+  :deep(.btn-primary) {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border-color: #10b981;
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.25);
+  }
+
+  :deep(.btn-primary:hover:not(:disabled)) {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    transform: translateY(-1px);
+  }
+
+  :deep(.btn-secondary) {
+    background: #ffffff;
+    color: #374151;
+    border-color: #d1d5db;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  :deep(.btn-secondary:hover:not(:disabled)) {
+    background: #f9fafb;
+    border-color: #10b981;
+    color: #10b981;
+    transform: translateY(-1px);
+  }
+
+  /* 输入输出样式 */
+  :deep(.input-textarea),
+  :deep(.json-input),
+  :deep(textarea) {
+    flex: 1;
+    padding: 1rem 1.25rem;
+    border: none;
+    outline: none;
+    font-family: 'Fira Code', 'Monaco', monospace;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    resize: none;
+    background: #ffffff;
+    color: #1e293b;
+    min-height: 200px;
+    max-height: calc(60vh - 120px); /* 限制最大高度，为头部和按钮留空间 */
+    overflow-y: auto; /* 启用垂直滚动 */
+  }
+
+  :deep(.output-textarea),
+  :deep(.json-output),
+  :deep(.result-output),
+  :deep(.hash-output),
+  :deep(.bulk-output),
+  :deep(pre) {
+    flex: 1;
+    padding: 1rem 1.25rem;
+    margin: 0;
+    font-family: 'Fira Code', 'Monaco', monospace;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    overflow: auto;
+    background: #f8fafc;
+    color: #1e293b;
+    border: none;
+    outline: none;
+    min-height: 200px;
+    max-height: calc(60vh - 120px); /* 限制最大高度，为头部和按钮留空间 */
+  }
+
+  /* 特殊输入框 */
+  :deep(.uuid-input),
+  :deep(.variant-input),
+  :deep(.count-input),
+  :deep(.compare-input),
+  :deep(.expected-input),
+  :deep(input[type="text"]),
+  :deep(input[type="number"]) {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-family: 'Fira Code', 'Monaco', monospace;
+    font-size: 0.875rem;
+    background: #ffffff;
+    color: #1e293b;
+    transition: all 0.2s ease;
+  }
+
+  :deep(.uuid-input),
+  :deep(.variant-input) {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+  }
+
+  /* UUID 显示组件 */
+  :deep(.current-uuid),
+  :deep(.format-variants),
+  :deep(.uuid-display),
+  :deep(.variant-display) {
+    padding: 1rem 1.25rem;
+  }
+
+  :deep(.format-variants) {
+    border-top: 1px solid #e2e8f0;
+  }
+
+  :deep(.uuid-display),
+  :deep(.variant-display) {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0;
+    margin-top: 0.5rem;
+  }
+
+  :deep(.variant-list) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+  }
+
+  :deep(.variant-item) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  :deep(.variant-item label) {
+    font-size: 0.75rem;
+    color: #6b7280;
+    font-weight: 500;
+  }
+
+  /* 复制按钮 */
+  :deep(.copy-btn),
+  :deep(.copy-btn-small) {
+    padding: 0.5rem;
+    background: #6b7280;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+  }
+
+  :deep(.copy-btn-small) {
+    min-width: 32px;
+    height: 32px;
+    padding: 0.25rem;
+  }
+
+  :deep(.copy-btn):hover,
+  :deep(.copy-btn-small):hover {
+    background: #10b981;
+    transform: translateY(-1px);
+  }
+
   /* 响应式设计 */
   /* 响应式设计 */
   @media (min-width: 1400px) {
@@ -1365,6 +1701,29 @@
   }
 
   @media (max-width: 768px) {
+    /* 工具组件移动端适配 */
+    :deep(.tool-layout),
+    :deep(.converter-layout),
+    :deep(.generator-layout) {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+    :deep(.section-header) {
+      flex-direction: column;
+      gap: 0.75rem;
+      align-items: stretch;
+    }
+
+    :deep(.actions) {
+      justify-content: center;
+    }
+
+    :deep(.btn) {
+      font-size: 0.8rem;
+      padding: 0.5rem 0.875rem;
+    }
+
     .toolkit-header {
       padding: 2rem 1rem 1.5rem;
     }
@@ -1569,6 +1928,35 @@
   }
 
   @media (max-width: 480px) {
+    /* 工具组件超小屏幕适配 */
+    :deep(.json-formatter),
+    :deep(.base64-converter),
+    :deep(.url-encoder),
+    :deep(.hash-generator),
+    :deep(.uuid-generator),
+    :deep(.timestamp-converter),
+    :deep(.string-generator),
+    :deep(.jira-extractor) {
+      padding: 1rem;
+    }
+
+    :deep(.section-header) {
+      padding: 0.875rem 1rem;
+    }
+
+    :deep(.btn) {
+      font-size: 0.75rem;
+      padding: 0.4rem 0.75rem;
+      min-height: 32px;
+    }
+
+    :deep(.input-textarea),
+    :deep(.output-textarea) {
+      min-height: 120px;
+      padding: 0.875rem 1rem;
+      font-size: 0.75rem;
+    }
+
     .toolkit-header {
       padding: 1.5rem 0.75rem 1.25rem;
     }

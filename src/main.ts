@@ -10,7 +10,9 @@ import store from './store'
 import axios from 'axios'
 
 // 配置 axios 默认值
-axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
+// 在开发环境下，如果没有设置 VITE_API_BASE_URL，使用空字符串让代理处理
+// 在生产环境下，使用完整的 API 地址
+axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '' : 'http://localhost:3000')
 
 const app = createApp(App)
 

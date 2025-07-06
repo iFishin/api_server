@@ -1,53 +1,61 @@
 version: '3.8'
 
 services:
+  # Node.js 后端服务
   api-server:
     build:
-      context: .
+      context: ..
       dockerfile: Dockerfile
-    container_name: api_server
+    container_name: api_server_backend
     restart: unless-stopped
     ports:
-      - "80:80"      # HTTP 标准端口
-      - "443:443"    # HTTPS 标准端口
+      - "3000:3000"    # HTTP API 端口
+      - "3443:3443"    # HTTPS API 端口
+      - "1883:1883"    # MQTT
+      - "8883:8883"    # MQTTS
+      - "9000:9000"    # UDP
+      - "9001:9001"    # TCP
     environment:
       - NODE_ENV=production
-      - HTTP_PORT=80
-      - HTTPS_PORT=443
+      - HTTP_PORT=3000
+      - HTTPS_PORT=3443
     volumes:
       # 持久化数据库
-      - ./data:/app/database.db:Z
-      # 持久化上传文件
-      - ./uploads:/app/server/uploads:Z
-      # 持久化临时文件
-      - ./temps:/app/server/temps:Z
+      - ../database.db:/app/database.db
+      # 持久化上传文件和临时文件
+      - ../temps:/app/server/temps
+      # SSL 证书
+      - ../server/certs:/app/server/certs:ro
     networks:
       - api-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
-  # 可选：添加 Nginx 反向代理
+  # Nginx 反向代理
   nginx:
     image: nginx:alpine
     container_name: api_server_nginx
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "80:80"      # 主要访问端口
+      - "443:443"    # HTTPS 访问端口
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro
+      - ../server/certs:/etc/nginx/ssl:ro
+      - ./maintenance.html:/var/www/html/errPage/maintenance.html:ro
     depends_on:
-      - api-server
+      api-server:
+        condition: service_healthy
     networks:
       - api-network
 
 networks:
   api-network:
+    driver: bridge
     driver: bridge
 
 volumes:

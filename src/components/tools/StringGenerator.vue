@@ -1,178 +1,242 @@
 <template>
   <div class="string-generator">
-    <div class="generator-container">
-      <div class="controls-section">
-        <h2>
-          <i class="fas fa-dice"></i>
-          字符串生成器
-        </h2>
-        <p class="description">生成指定长度和字符集的随机字符串</p>
-
-        <!-- 长度设置 -->
-        <div class="control-group">
-          <div class="length-labels">
-            <label for="length">字符串长度</label>
-            <label for="maxLength" class="max-length-label">最大值</label>
+    <!-- Copy notification -->
+    <CopyNotification
+      :visible="showCopyMessage"
+      :message="copyStatus"
+      :type="copyType"
+      @hide="showCopyMessage = false"
+    />
+    
+    <div class="tool-layout">
+      <div class="input-section">
+        <div class="section-header">
+          <h3>
+            <i class="fas fa-dice"></i>
+            字符串生成器
+          </h3>
+        </div>
+        
+        <div class="section-content">
+          <div class="description-section">
+            <p class="description">生成指定长度和字符集的随机字符串，支持多种字符组合和自定义选项</p>
+            <div class="feature-tags">
+              <span class="feature-tag">
+                <i class="fas fa-sliders-h"></i>
+                自定义长度
+              </span>
+              <span class="feature-tag">
+                <i class="fas fa-font"></i>
+                多字符集
+              </span>
+              <span class="feature-tag">
+                <i class="fas fa-layer-group"></i>
+                批量生成
+              </span>
+            </div>
           </div>
-          <div class="length-controls">
-            <input
-              id="length"
-              v-model.number="length"
-              type="number"
-              min="1"
-              :max="maxLength"
-              class="length-input"
-            />
-            <div class="slider-container">
-              <input
-                v-model.number="length"
-                type="range"
-                min="1"
-                :max="maxLength"
-                class="length-slider"
-              />
-              <div class="slider-labels">
-                <span class="slider-min">1</span>
-                <span class="slider-max">{{ maxLength }}</span>
+
+          <!-- 长度设置 -->
+          <div class="input-group">
+            <div class="input-label-section">
+              <label class="input-label">
+                <i class="fas fa-ruler"></i>
+                字符串长度设置
+              </label>
+              <span class="input-hint">设置生成字符串的长度和最大值</span>
+            </div>
+            
+            <div class="length-controls">
+              <div class="length-input-group">
+                <label for="length">当前长度</label>
+                <input
+                  id="length"
+                  v-model.number="length"
+                  type="number"
+                  min="1"
+                  :max="maxLength"
+                  class="length-input"
+                />
+              </div>
+              
+              <div class="slider-container">
+                <input
+                  v-model.number="length"
+                  type="range"
+                  min="1"
+                  :max="maxLength"
+                  class="length-slider"
+                />
+                <div class="slider-labels">
+                  <span class="slider-min">1</span>
+                  <span class="slider-max">{{ maxLength }}</span>
+                </div>
+              </div>
+              
+              <div class="max-length-group">
+                <label for="maxLength">最大长度</label>
+                <input
+                  id="maxLength"
+                  v-model.number="maxLength"
+                  type="number"
+                  min="10"
+                  max="10000"
+                  class="max-length-input"
+                />
               </div>
             </div>
-            <input
-              id="maxLength"
-              v-model.number="maxLength"
-              type="number"
-              min="10"
-              max="10000"
-              class="max-length-input"
-            />
+            
+            <div class="length-info">
+              当前长度: <strong>{{ length }}</strong> / 最大: <strong>{{ maxLength }}</strong>
+            </div>
           </div>
-          <div class="length-info">
-            当前长度: <strong>{{ length }}</strong> / 最大: <strong>{{ maxLength }}</strong>
+
+          <!-- 字符集选项 -->
+          <div class="config-section">
+            <h4>字符集配置</h4>
+            
+            <div class="config-group">
+              <label>预设字符集</label>
+              <div class="checkbox-options">
+                <label class="checkbox-item">
+                  <input v-model="includeUppercase" type="checkbox" />
+                  <span class="checkmark"></span>
+                  大写字母 (A-Z)
+                </label>
+                <label class="checkbox-item">
+                  <input v-model="includeLowercase" type="checkbox" />
+                  <span class="checkmark"></span>
+                  小写字母 (a-z)
+                </label>
+                <label class="checkbox-item">
+                  <input v-model="includeNumbers" type="checkbox" />
+                  <span class="checkmark"></span>
+                  数字 (0-9)
+                </label>
+                <label class="checkbox-item">
+                  <input v-model="includeSymbols" type="checkbox" />
+                  <span class="checkmark"></span>
+                  特殊字符 (!@#$%^&*)
+                </label>
+                <label class="checkbox-item">
+                  <input v-model="includeSpace" type="checkbox" />
+                  <span class="checkmark"></span>
+                  空格字符
+                </label>
+              </div>
+            </div>
+
+            <div class="config-group">
+              <label for="customChars">自定义字符</label>
+              <input
+                id="customChars"
+                v-model="customCharacters"
+                type="text"
+                placeholder="输入您想要包含的自定义字符..."
+                class="custom-input"
+              />
+              <small class="help-text">可添加任意字符扩展字符集</small>
+            </div>
+
+            <div class="config-group">
+              <label class="checkbox-item">
+                <input v-model="excludeSimilar" type="checkbox" />
+                <span class="checkmark"></span>
+                排除相似字符 (0, O, l, 1, I)
+              </label>
+            </div>
           </div>
-        </div>
 
-        <!-- 字符集选项 -->
-        <div class="control-group">
-          <label>字符集选项</label>
-          <div class="checkbox-group">
-            <label class="checkbox-item">
-              <input v-model="includeUppercase" type="checkbox" />
-              <span class="custom-checkbox"></span>
-              <span class="checkbox-text">大写字母 (A-Z)</span>
-            </label>
-            <label class="checkbox-item">
-              <input v-model="includeLowercase" type="checkbox" />
-              <span class="custom-checkbox"></span>
-              <span class="checkbox-text">小写字母 (a-z)</span>
-            </label>
-            <label class="checkbox-item">
-              <input v-model="includeNumbers" type="checkbox" />
-              <span class="custom-checkbox"></span>
-              <span class="checkbox-text">数字 (0-9)</span>
-            </label>
-            <label class="checkbox-item">
-              <input v-model="includeSymbols" type="checkbox" />
-              <span class="custom-checkbox"></span>
-              <span class="checkbox-text">特殊字符 (!@#$%^&*)</span>
-            </label>
-            <label class="checkbox-item">
-              <input v-model="includeSpace" type="checkbox" />
-              <span class="custom-checkbox"></span>
-              <span class="checkbox-text">空格</span>
-            </label>
+          <!-- 操作按钮 -->
+          <div class="action-buttons">
+            <button @click="generateString" class="btn btn-primary generate-btn" :disabled="!hasValidCharSet">
+              <i class="fas fa-magic"></i>
+              生成字符串
+            </button>
+            <button @click="generateMultiple" class="btn btn-secondary batch-btn" :disabled="!hasValidCharSet">
+              <i class="fas fa-layer-group"></i>
+              批量生成 (10个)
+            </button>
           </div>
-        </div>
-
-        <!-- 自定义字符 -->
-        <div class="control-group">
-          <label for="customChars">自定义字符</label>
-          <input
-            id="customChars"
-            v-model="customCharacters"
-            type="text"
-            placeholder="输入自定义字符"
-            class="custom-input"
-          />
-          <small class="help-text">输入您想要包含的自定义字符</small>
-        </div>
-
-        <!-- 排除相似字符 -->
-        <div class="control-group">
-          <label class="checkbox-item">
-            <input v-model="excludeSimilar" type="checkbox" />
-            <span class="custom-checkbox"></span>
-            <span class="checkbox-text">排除相似字符 (0, O, l, 1, I)</span>
-          </label>
-        </div>
-
-        <!-- 生成按钮 -->
-        <div class="action-buttons">
-          <button @click="generateString" class="generate-btn" :disabled="!hasValidCharSet">
-            <i class="fas fa-magic"></i>
-            生成字符串
-          </button>
-          <button @click="generateMultiple" class="batch-btn" :disabled="!hasValidCharSet">
-            <i class="fas fa-layer-group"></i>
-            批量生成 (10个)
-          </button>
         </div>
       </div>
 
       <div class="output-section">
-        <h3>生成结果</h3>
-        
-        <!-- 复制状态提示 -->
-        <div v-if="copyStatus" class="copy-status">
-            <i class="fas fa-check-circle"></i>
-          {{ copyStatus }}
+        <div class="section-header">
+          <h3>生成结果</h3>
         </div>
         
-        <!-- 单个结果 -->
-        <div v-if="generatedString" class="result-item">
-          <div class="result-header">
-            <span class="result-label">生成的字符串</span>
-            <button @click="copyToClipboard(generatedString)" class="copy-btn">
-              <i class="fas fa-copy"></i>
-              复制
-            </button>
-          </div>
-          <div class="result-content">
-            <code>{{ generatedString }}</code>
-          </div>
-          <div class="result-info">
-            长度: {{ generatedString.length }} | 字符集: {{ getCharSetInfo() }}
-          </div>
-        </div>
-
-        <!-- 批量结果 -->
-        <div v-if="batchResults.length > 0" class="batch-results">
-          <div class="result-header">
-            <span class="result-label">批量生成结果</span>
-            <button @click="copyAllToClipboard" class="copy-btn">
-              <i class="fas fa-copy"></i>
-              复制全部
-            </button>
-          </div>
-          <div class="batch-list">
-            <div
-              v-for="(str, index) in batchResults"
-              :key="index"
-              class="batch-item"
-              @click="copyToClipboard(str)"
-            >
-              <code>{{ str }}</code>
-              <i class="fas fa-copy copy-icon"></i>
+        <div class="section-content">
+          <!-- 字符集预览 -->
+          <div v-if="availableChars" class="charset-preview">
+            <div class="subsection-header">
+              <span class="subsection-title">当前字符集</span>
+              <span class="charset-stats">{{ availableChars.length }} 个字符</span>
+            </div>
+            <div class="charset-display">
+              <code>{{ availableChars.slice(0, 100) }}{{ availableChars.length > 100 ? '...' : '' }}</code>
             </div>
           </div>
-        </div>
-
-        <!-- 字符集预览 -->
-        <div v-if="availableChars" class="charset-preview">
-          <h4>当前字符集</h4>
-          <div class="charset-display">
-            <code>{{ availableChars.slice(0, 100) }}{{ availableChars.length > 100 ? '...' : '' }}</code>
+          <!-- 单个结果 -->
+          <div v-if="generatedString" class="single-result">
+            <div class="subsection-header">
+              <span class="subsection-title">生成的字符串</span>
+              <button @click="copyToClipboard(generatedString)" class="btn btn-secondary" title="复制字符串">
+                <i class="fas fa-copy"></i>
+                复制
+              </button>
+            </div>
+            <div class="result-display">
+              <div class="result-content">
+                <code>{{ generatedString }}</code>
+              </div>
+              <div class="result-info">
+                <div class="info-item">
+                  <span class="info-label">长度:</span>
+                  <span class="info-value">{{ generatedString.length }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">字符集:</span>
+                  <span class="info-value">{{ getCharSetInfo() }}</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="charset-info">
-            总计 {{ availableChars.length }} 个字符
+
+          <!-- 批量结果 -->
+          <div v-if="batchResults.length > 0" class="batch-results">
+            <div class="subsection-header">
+              <span class="subsection-title">批量生成结果</span>
+              <button @click="copyAllToClipboard" class="btn btn-secondary" title="复制所有字符串">
+                <i class="fas fa-copy"></i>
+                复制全部
+              </button>
+            </div>
+            <div class="batch-grid">
+              <div
+                v-for="(str, index) in batchResults"
+                :key="index"
+                class="batch-item"
+                @click="copyToClipboard(str)"
+                :title="`点击复制第 ${index + 1} 个字符串`"
+              >
+                <span class="batch-index">#{{ index + 1 }}</span>
+                <code class="batch-content">{{ str }}</code>
+                <i class="fas fa-copy copy-icon"></i>
+              </div>
+            </div>
+            <div class="batch-summary">
+              生成了 <strong>{{ batchResults.length }}</strong> 个字符串，每个长度为 <strong>{{ length }}</strong>
+            </div>
+          </div>
+
+          <!-- 空状态 -->
+          <div v-if="!generatedString && batchResults.length === 0" class="empty-state">
+            <div class="empty-icon">
+              <i class="fas fa-dice"></i>
+            </div>
+            <h4>请选择字符集并生成字符串</h4>
+            <p>配置字符集选项，然后点击生成按钮开始创建随机字符串</p>
           </div>
         </div>
       </div>
@@ -182,6 +246,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
+import CopyNotification from '@/components/common/CopyNotification.vue';
 
 // 响应式数据
 const length = ref(12);
@@ -196,6 +261,8 @@ const excludeSimilar = ref(false);
 const generatedString = ref('');
 const batchResults = ref<string[]>([]);
 const copyStatus = ref<string>(''); // 复制状态提示
+const copyType = ref<'success' | 'error' | 'info' | 'warning'>('success'); // 复制类型
+const showCopyMessage = ref(false); // 显示复制消息
 
 // 字符集定义
 const UPPERCASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -282,52 +349,41 @@ const getCharSetInfo = () => {
 
 const copyToClipboard = async (text: string) => {
   try {
-    // 首先尝试使用现代 Clipboard API
     if (navigator.clipboard && window.isSecureContext) {
+      // 现代浏览器的 Clipboard API
       await navigator.clipboard.writeText(text);
-      console.log('复制成功:', text.slice(0, 20) + (text.length > 20 ? '...' : ''));
-      showCopyStatus('复制成功!');
-      return;
-    }
-    
-    // 回退到传统方法
-    const textArea = document.createElement('textarea');
-    textArea.value = text;
-    textArea.style.position = 'fixed';
-    textArea.style.left = '-999999px';
-    textArea.style.top = '-999999px';
-    document.body.appendChild(textArea);
-    textArea.focus();
-    textArea.select();
-    
-    const successful = document.execCommand('copy');
-    document.body.removeChild(textArea);
-    
-    if (successful) {
-      console.log('复制成功:', text.slice(0, 20) + (text.length > 20 ? '...' : ''));
-      showCopyStatus('复制成功!');
+      showCopySuccess('已复制到剪贴板！');
     } else {
-      throw new Error('复制命令执行失败');
+      // 兼容旧浏览器的 fallback 方法
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      try {
+        document.execCommand('copy');
+        showCopySuccess('已复制到剪贴板！');
+      } catch (err) {
+        console.error('复制失败:', err);
+        showCopySuccess('复制失败，请手动复制', 'error');
+      } finally {
+        document.body.removeChild(textArea);
+      }
     }
   } catch (err) {
     console.error('复制失败:', err);
-    showCopyStatus('复制失败，请手动复制');
-    
-    // 最后的回退：提示用户手动复制
-    setTimeout(() => {
-      const result = prompt('自动复制失败，请手动复制以下内容:', text);
-      if (result !== null) {
-        console.log('用户已查看内容');
-      }
-    }, 100);
+    showCopySuccess('复制失败，请手动复制', 'error');
   }
 };
 
-const showCopyStatus = (message: string) => {
+const showCopySuccess = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'success') => {
   copyStatus.value = message;
-  setTimeout(() => {
-    copyStatus.value = '';
-  }, 2000);
+  copyType.value = type;
+  showCopyMessage.value = true;
 };
 
 const copyAllToClipboard = async () => {
@@ -337,658 +393,604 @@ const copyAllToClipboard = async () => {
 </script>
 
 <style scoped>
-.string-generator {
-  padding: 2rem;
-  min-width: 80%;
-  margin: 0 auto;
-}
+/* StringGenerator 专属样式 - 与父容器 ToolKitView 协调 */
 
-.generator-container {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-  height: 100%;
-}
-
-.controls-section {
-  background: #fff;
-  padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e5e7eb;
-  max-height: 85vh;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-
-.controls-section::-webkit-scrollbar,
-.output-section::-webkit-scrollbar {
-  width: 6px;
-}
-
-.controls-section::-webkit-scrollbar-track,
-.output-section::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 3px;
-}
-
-.controls-section::-webkit-scrollbar-thumb,
-.output-section::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
-  transition: background 0.2s ease;
-}
-
-.controls-section::-webkit-scrollbar-thumb:hover,
-.output-section::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-.controls-section h2 {
-  margin: 0 0 0.5rem 0;
-  color: #1f2937;
-  font-size: 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.controls-section h2 i {
-  color: #3b82f6;
-}
-
-.description {
-  margin: 0 0 2rem 0;
-  color: #6b7280;
-  font-size: 0.95rem;
-}
-
-.control-group {
+/* 描述区块样式 */
+.string-generator .description-section {
   margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
 }
 
-.control-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  color: #374151;
-  font-size: 0.9rem;
+.string-generator .description {
+  margin: 0 0 1rem 0;
+  color: #1e40af;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.5;
 }
 
-.length-labels {
+.string-generator .feature-tags {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.length-labels label {
-  margin-bottom: 0;
-}
-
-.length-controls {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
   flex-wrap: wrap;
 }
 
-.length-input {
-  width: 80px;
-  padding: 0.625rem 0.75rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
+.string-generator .feature-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  background: #3b82f6;
+  color: white;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+}
+
+.string-generator .feature-tag i {
+  font-size: 0.7rem;
+}
+
+/* 输入标签区块 */
+.string-generator .input-label-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.string-generator .input-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 0.9rem;
-  font-weight: 500;
+  font-weight: 600;
+  color: #374151;
+}
+
+.string-generator .input-label i {
+  color: #3b82f6;
+  font-size: 0.8rem;
+}
+
+.string-generator .input-hint {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* 长度控制 - StringGenerator 专属 */
+.string-generator .length-controls {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 1rem;
+  align-items: center;
+  margin: 1rem 0;
+  padding: 1rem;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.string-generator .length-input-group,
+.string-generator .max-length-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.string-generator .length-input-group label,
+.string-generator .max-length-group label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.string-generator .length-input,
+.string-generator .max-length-input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
   text-align: center;
-  transition: border-color 0.2s ease;
-}
-
-.length-input:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.slider-container {
-  flex: 1;
-  min-width: 200px;
-}
-
-.length-slider {
-  width: 100%;
-  height: 8px;
-  border-radius: 4px;
-  background: linear-gradient(to right, #e5e7eb 0%, #e5e7eb 100%);
-  outline: none;
-  appearance: none;
-  cursor: pointer;
-}
-
-.length-slider::-webkit-slider-thumb {
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  font-weight: 600;
+  color: #3b82f6;
+  background: white;
   transition: all 0.2s ease;
 }
 
-.length-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+.string-generator .length-input:focus,
+.string-generator .max-length-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  outline: none;
 }
 
-.length-slider::-moz-range-thumb {
+.string-generator .slider-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.string-generator .length-slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #e5e7eb;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.string-generator .length-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  background: #3b82f6;
   cursor: pointer;
-  border: none;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
 }
 
-.slider-labels {
+.string-generator .length-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+
+.string-generator .slider-labels {
   display: flex;
   justify-content: space-between;
-  margin-top: 0.5rem;
+  width: 100%;
   font-size: 0.75rem;
   color: #6b7280;
 }
 
-.slider-min,
-.slider-max {
-  font-weight: 500;
+.string-generator .length-info {
+  grid-column: 1 / -1;
+  text-align: center;
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: #374151;
+  padding: 0.5rem;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
 }
 
-.max-length-control {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
+/* 配置区块 - StringGenerator 专属样式 */
+.string-generator .config-section {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
 }
 
-.max-length-label {
-  font-size: 0.9rem;
+.string-generator .config-section h4 {
+  margin: 0 0 1rem 0;
+  font-size: 0.875rem;
   font-weight: 600;
   color: #374151;
-  margin-bottom: 0 !important;
 }
 
-.max-length-input {
-  width: 80px;
-  padding: 0.625rem 0.75rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  text-align: center;
-  transition: border-color 0.2s ease;
-}
-
-.max-length-input:focus {
-  outline: none;
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
-}
-
-.length-info {
-  margin-top: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-  border: 1px solid #bae6fd;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  color: #0c4a6e;
-  text-align: center;
-}
-
-.length-info strong {
-  color: #1e40af;
-}
-
-.checkbox-group {
+.string-generator .config-group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  margin-bottom: 1rem;
 }
 
-.checkbox-item {
+.string-generator .config-group:last-child {
+  margin-bottom: 0;
+}
+
+.string-generator .checkbox-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.string-generator .checkbox-item {
   display: flex;
   align-items: center;
+  gap: 0.5rem;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   color: #374151;
-  margin-bottom: 0;
-  position: relative;
-  border-radius: 8px;
+  padding: 0.25rem 0;
+}
+
+.string-generator .checkbox-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #3b82f6;
+}
+
+.string-generator .custom-input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: white;
   transition: all 0.2s ease;
+  font-family: 'Fira Code', 'Monaco', monospace;
 }
 
-.checkbox-item:hover {
-  background: rgba(59, 130, 246, 0.05);
-}
-
-.checkbox-item input[type="checkbox"] {
-  position: absolute;
-  opacity: 0;
-  cursor: pointer;
-  height: 0;
-  width: 0;
-}
-
-.custom-checkbox {
-  position: relative;
-  width: 18px !important;
-  height: 18px !important;
-  min-width: 18px;
-  min-height: 18px;
-  max-width: 18px;
-  max-height: 18px;
-  background: #ffffff;
-  border: 2px solid #d1d5db;
-  border-radius: 4px;
-  margin-right: 0.75rem;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-  box-sizing: border-box;
-  display: inline-block;
-}
-
-.custom-checkbox::after {
-  content: '';
-  position: absolute;
-  display: none;
-  left: 4px;
-  top: 0px;
-  width: 5px;
-  height: 9px;
-  border: solid white;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-
-.checkbox-item input[type="checkbox"]:checked + .custom-checkbox {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  border-color: #3b82f6;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
-}
-
-.checkbox-item input[type="checkbox"]:checked + .custom-checkbox::after {
-  display: block;
-}
-
-.checkbox-item:hover .custom-checkbox {
+.string-generator .custom-input:focus {
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.checkbox-text {
-  font-weight: 500;
-  line-height: 1.4;
-}
-
-.custom-input {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  transition: all 0.2s ease;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-}
-
-.custom-input:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.help-text {
-  display: block;
-  margin-top: 0.5rem;
+.string-generator .help-text {
+  font-size: 0.75rem;
   color: #6b7280;
-  font-size: 0.8rem;
   font-style: italic;
 }
 
-.action-buttons {
+/* 操作按钮样式 */
+.string-generator .action-buttons {
   display: flex;
   gap: 1rem;
-  margin-top: 2rem;
+  margin-top: 1rem;
 }
 
-.generate-btn,
-.batch-btn {
+.string-generator .generate-btn,
+.string-generator .batch-btn {
   flex: 1;
-  padding: 1rem 1.25rem;
+  padding: 0.75rem 1rem;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   font-weight: 600;
-  font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-size: 0.875rem;
+  white-space: nowrap;
 }
 
-.generate-btn {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  color: white;
-}
-
-.generate-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-.batch-btn {
-  background: linear-gradient(135deg, #10b981, #059669);
-  color: white;
-}
-
-.batch-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #059669, #047857);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-}
-
-.generate-btn:disabled,
-.batch-btn:disabled {
-  background: #9ca3af;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-.output-section {
-  background: #fff;
-  padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e5e7eb;
-  max-height: 85vh;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-
-.output-section h3 {
-  margin: 0 0 1.5rem 0;
-  color: #1f2937;
-  font-size: 1.25rem;
-}
-
-.copy-status {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: linear-gradient(135deg, #10b981, #059669);
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-  font-weight: 500;
-  font-size: 0.9rem;
-  z-index: 1000;
-  animation: slideInRight 0.3s ease-out;
-}
-
-@keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-.result-item,
-.batch-results {
-  margin-bottom: 2rem;
-}
-
-.result-header {
+/* 子区块标题 */
+.string-generator .subsection-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.75rem;
+  margin: 1.5rem 0 1rem 0;
+  padding: 0 0.5rem 0.75rem 0.5rem;
+  border-bottom: 2px solid #e5e7eb;
 }
 
-.result-label {
-  font-weight: 600;
-  color: #374151;
-  font-size: 0.9rem;
-}
-
-.copy-btn {
-  padding: 0.5rem 1rem;
-  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  color: #374151;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  position: relative;
-  overflow: hidden;
-}
-
-.copy-btn:hover {
-  background: linear-gradient(135deg, #e5e7eb, #d1d5db);
-  border-color: #3b82f6;
-  color: #3b82f6;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
-}
-
-.copy-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 4px rgba(59, 130, 246, 0.2);
-}
-
-.copy-btn::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  background: rgba(59, 130, 246, 0.3);
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  transition: width 0.6s, height 0.6s;
-}
-
-.copy-btn:active::after {
-  width: 300px;
-  height: 300px;
-}
-
-.result-content {
-  background: linear-gradient(135deg, #f9fafb, #f3f4f6);
-  border: 2px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 1.25rem;
-  margin-bottom: 0.75rem;
-  position: relative;
-  overflow: hidden;
-}
-
-.result-content::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #3b82f6, #10b981, #f59e0b);
-}
-
-.result-content code {
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 0.9rem;
-  word-break: break-all;
-  color: #1f2937;
-  line-height: 1.6;
-  font-weight: 500;
-}
-
-.result-info {
-  font-size: 0.8rem;
-  color: #6b7280;
-}
-
-.batch-list {
-  max-height: 350px;
-  overflow-y: auto;
-  border: 2px solid #e5e7eb;
-  border-radius: 10px;
-  background: #ffffff;
-}
-
-.batch-item {
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid #f3f4f6;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  position: relative;
-}
-
-.batch-item:hover {
-  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-  border-left: 3px solid #3b82f6;
-  padding-left: 1.125rem;
-}
-
-.batch-item:last-child {
-  border-bottom: none;
-}
-
-.batch-item code {
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 0.85rem;
-  flex: 1;
-  font-weight: 500;
-  color: #1f2937;
-}
-
-.copy-icon {
-  color: #9ca3af;
-  font-size: 0.9rem;
-  transition: color 0.2s ease;
-}
-
-.batch-item:hover .copy-icon {
-  color: #3b82f6;
-}
-
-.charset-preview {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  border-top: 2px solid #e5e7eb;
-}
-
-.charset-preview h4 {
-  margin: 0 0 1rem 0;
-  color: #374151;
+.string-generator .subsection-title {
   font-size: 1rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.charset-display {
-  background: linear-gradient(135deg, #f9fafb, #f3f4f6);
-  border: 2px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 1.25rem;
-  margin-bottom: 0.75rem;
+  font-weight: 700;
+  color: #374151;
   position: relative;
-  overflow: hidden;
 }
 
-.charset-display::before {
+.string-generator .subsection-title::after {
   content: '';
   position: absolute;
-  top: 0;
+  bottom: -0.75rem;
   left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #10b981, #3b82f6, #f59e0b);
+  width: 2rem;
+  height: 2px;
+  background: #3b82f6;
 }
 
-.charset-display code {
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+.string-generator .charset-stats {
   font-size: 0.8rem;
-  word-break: break-all;
-  color: #1f2937;
-  line-height: 1.8;
-  letter-spacing: 0.5px;
-}
-
-.charset-info {
-  font-size: 0.85rem;
   color: #6b7280;
   font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  background: #f3f4f6;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
 }
 
+/* 字符集预览 */
+.string-generator .charset-preview {
+  margin: 1rem 0;
+  padding: 0.5rem;
+}
+
+.string-generator .charset-display {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.string-generator .charset-display code {
+  font-family: 'Fira Code', 'Monaco', monospace;
+  font-size: 0.875rem;
+  color: #1e293b;
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+/* 单个结果显示 */
+.string-generator .single-result {
+  margin: 1rem 0;
+  padding: 0.5rem;
+}
+
+.string-generator .result-display {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 1rem 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.string-generator .result-content {
+  padding: 1.25rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.string-generator .result-content code {
+  font-family: 'Fira Code', 'Monaco', monospace;
+  font-size: 1rem;
+  color: #1e293b;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  word-break: break-all;
+  line-height: 1.6;
+}
+
+.string-generator .result-info {
+  padding: 1rem 1.25rem;
+  background: white;
+  display: flex;
+  gap: 2rem;
+}
+
+.string-generator .info-item {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.string-generator .info-label {
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.string-generator .info-value {
+  font-size: 0.875rem;
+  color: #374151;
+  font-weight: 600;
+}
+
+/* 批量结果网格 */
+.string-generator .batch-results {
+  margin: 1rem 0;
+  padding: 0.5rem;
+}
+
+.string-generator .batch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+  padding: 0.5rem;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.string-generator .batch-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.string-generator .batch-item:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.string-generator .batch-index {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 600;
+  background: #f3f4f6;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  min-width: 32px;
+  text-align: center;
+}
+
+.string-generator .batch-content {
+  flex: 1;
+  font-family: 'Fira Code', 'Monaco', monospace;
+  font-size: 0.875rem;
+  color: #1e293b;
+  font-weight: 600;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.string-generator .copy-icon {
+  font-size: 0.8rem;
+  color: #6b7280;
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+
+.string-generator .batch-item:hover .copy-icon {
+  opacity: 1;
+  color: #3b82f6;
+  transform: scale(1.1);
+}
+
+.string-generator .batch-summary {
+  text-align: center;
+  padding: 1rem;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #374151;
+  margin-top: 1rem;
+}
+
+/* 空状态 - 优雅的空状态展示 */
+.string-generator .empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #6b7280;
+}
+
+.string-generator .empty-icon {
+  font-size: 3rem;
+  color: #d1d5db;
+  margin-bottom: 1rem;
+}
+
+.string-generator .empty-state h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.125rem;
+  color: #374151;
+  font-weight: 600;
+}
+
+.string-generator .empty-state p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* 滚动条样式 */
+.string-generator .batch-grid::-webkit-scrollbar {
+  width: 6px;
+}
+
+.string-generator .batch-grid::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.string-generator .batch-grid::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.string-generator .batch-grid::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* 响应式设计 - 移动端优化 */
 @media (max-width: 768px) {
-  .generator-container {
+  .string-generator .description-section {
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .string-generator .feature-tags {
+    gap: 0.5rem;
+    justify-content: center;
+  }
+
+  .string-generator .feature-tag {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
+  }
+
+  .string-generator .input-label-section {
+    flex-direction: column;
+    gap: 0.25rem;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+  }
+
+  .string-generator .length-controls {
     grid-template-columns: 1fr;
     gap: 1rem;
+    padding: 0.75rem;
   }
-  
-  .action-buttons {
+
+  .string-generator .action-buttons {
     flex-direction: column;
+    gap: 0.75rem;
   }
-  
-  .string-generator {
-    padding: 1rem;
+
+  .string-generator .generate-btn,
+  .string-generator .batch-btn {
+    padding: 0.875rem 1rem;
+    font-size: 0.875rem;
   }
-  
-  .controls-section,
-  .output-section {
-    padding: 1.5rem;
+
+  .string-generator .batch-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    padding: 0.25rem;
   }
-  
-  .length-controls {
+
+  .string-generator .batch-item {
+    padding: 0.75rem;
+  }
+
+  .string-generator .result-info {
     flex-direction: column;
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+
+  .string-generator .copy-notification {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    padding: 0.75rem 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .string-generator .description {
+    font-size: 0.9rem;
+  }
+
+  .string-generator .config-section {
+    padding: 0.75rem;
+    margin: 0.75rem 0;
+  }
+
+  .string-generator .subsection-header {
+    flex-direction: column;
+    gap: 0.75rem;
     align-items: stretch;
-    gap: 1rem;
+    padding: 0 0.25rem 0.75rem 0.25rem;
   }
-  
-  .length-labels {
-    justify-content: space-around;
-  }
-  
-  .slider-container {
-    min-width: auto;
-  }
-  
-  .max-length-control {
-    align-self: center;
+
+  .string-generator .batch-summary {
+    padding: 0.75rem;
+    font-size: 0.8rem;
   }
 }
 </style>
+

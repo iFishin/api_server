@@ -158,7 +158,9 @@
 
   // 下载文件
   function downloadFile(file: FileItem) {
-    window.open(`http://localhost:3000/api/files/download/${encodeURIComponent(file.name)}`, '_blank');
+    // 使用相对路径，让 Vite 代理处理
+    const baseURL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '' : 'http://localhost:3000');
+    window.open(`${baseURL}/api/files/download/${encodeURIComponent(file.name)}`, '_blank');
   }
 
   // 格式化文件大小

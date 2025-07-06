@@ -121,12 +121,58 @@ main {
   position: relative;
   border: 1px solid #e2e8f0;
   word-wrap: break-word;
-  overflow: auto;
+  overflow: hidden; /* 改为 hidden 避免不必要的滚动条 */
   display: flex;
   flex-direction: column;
   margin: 0 auto;
   transition: padding 0.2s, border-radius 0.2s, box-shadow 0.2s;
 }
+
+/* Always apply bg-pattern to main */
+main::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at 25% 25%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(34, 197, 94, 0.06) 0%, transparent 50%);
+  background-size: 100px 100px;
+  animation: patternFloat 20s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Ensure content is above background pattern */
+main > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes patternFloat {
+  0%, 100% { 
+    transform: translateY(0) rotate(0deg); 
+  }
+  50% { 
+    transform: translateY(-10px) rotate(2deg); 
+  }
+}
+
+.bg-pattern {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at 25% 25%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(34, 197, 94, 0.06) 0%, transparent 50%);
+  background-size: 100px 100px;
+  animation: patternFloat 20s ease-in-out infinite;
+}
+
 
 /* 平板适配 */
 @media (max-width: 1200px) {

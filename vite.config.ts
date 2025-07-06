@@ -43,22 +43,29 @@ export default defineConfig(({ mode }: { mode: string }) => {
       host: '0.0.0.0',
       port: 5173,
       proxy: {
-        '^/api/.*': {
+        '/api': {
           target: 'http://localhost:3000',
           changeOrigin: true,
           secure: false,
           ws: true,
           configure: (proxy: any, _options: any) => {
-            proxy.on('error', (err: any, _req: any, _res: any) => {
-              console.log('proxy error', err);
+            proxy.on('error', (err: any, req: any, res: any) => {
+              console.log('🔴 Proxy error:', err.message);
+              console.log('🔴 Request URL:', req.url);
             });
             proxy.on('proxyReq', (proxyReq: any, req: any, _res: any) => {
-              console.log('Sending Request to the Target:', req.method, req.url);
+              console.log('🟡 Sending Request to the Target:', req.method, req.url, '-> http://localhost:3000' + req.url);
             });
             proxy.on('proxyRes', (proxyRes: any, req: any, _res: any) => {
-              console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
+              console.log('🟢 Received Response from the Target:', proxyRes.statusCode, req.url);
             });
           }
+        },
+        '/webdav': {
+          target: 'http://localhost:3000',
+          changeOrigin: true,
+          secure: false,
+          ws: true
         }
       }
     }
