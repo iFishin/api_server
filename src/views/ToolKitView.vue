@@ -251,6 +251,7 @@
   import UuidGenerator from '../components/tools/UuidGenerator.vue';
   import StringGenerator from '../components/tools/StringGenerator.vue';
   import JiraExtractor from '../components/tools/JiraExtractor.vue';
+  import OvertimeCalculator from '../components/tools/OvertimeCalculator.vue';
   
   const store = useStore();
   const route = useRoute();
@@ -268,7 +269,8 @@
     { id: 'generator', name: 'Generators', icon: 'fas fa-magic' },
     { id: 'encoder', name: 'Encoders', icon: 'fas fa-lock' },
     { id: 'network', name: 'Network', icon: 'fas fa-network-wired' },
-    { id: 'dev', name: 'Development', icon: 'fas fa-code' }
+    { id: 'dev', name: 'Development', icon: 'fas fa-code' },
+    { id: 'others', name: 'Others', icon: 'fas fa-code' }
   ]);
   
   // 工具列表
@@ -411,7 +413,19 @@
       icon: 'fas fa-plug',
       category: 'dev',
       tags: ['API', 'HTTP', 'REST']
+    },
+
+    // Others
+    {
+      id: 'over-time-calculator',
+      name: 'Overtime Calculator',
+      description: 'Calculate overtime pay based on hours worked',
+      icon: 'fas fa-clock',
+      category: 'dev',
+      tags: ['Overtime', 'Pay', 'Calculator'],
+      component: OvertimeCalculator
     }
+    
   ]);
    // 计算属性
   const filteredTools = computed(() => {

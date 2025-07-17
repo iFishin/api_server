@@ -27,6 +27,11 @@ import {
 } from "../controllers/httpController";
 
 import upload from "../middlewares/multer";
+import { exec } from "child_process";
+// 引入加班服务
+import { calculateOvertime } from '../services/overtimeService';
+// 引入加班控制器
+import { handleCalculateOvertime } from '../controllers/overtimeController';
 
 const router = express.Router();
 
@@ -907,6 +912,9 @@ registerApiDoc({
     },
   },
 });
+
+// 修复新增的 Python 脚本调用路由，移除显式类型定义
+router.post('/calculate-overtime', handleCalculateOvertime);
 
 // Error handling middleware
 router.use((err: Error, req: Request, res: Response, next: Function) => {
