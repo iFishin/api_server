@@ -1,17 +1,19 @@
 name: Node.js CI
 
+# 工作流已禁用
 on:
-  push:
-    branches: [ "main", "develop" ]
-    paths:
-      - '**.js'
-      - '**.ts'
-      - '**.vue'
-      - '**.json'
-      - 'package*.json'
-      - '.github/workflows/node.js.yml'
-  pull_request:
-    branches: [ "main", "develop" ]
+  # 禁用所有自动触发器
+  # push:
+  #   branches: [ "main", "develop" ]
+  #   paths:
+  #     - '**.js'
+  #     - '**.ts'
+  #     - '**.vue'
+  #     - '**.json'
+  #     - 'package*.json'
+  #     - '.github/workflows/node.js.yml'
+  # pull_request:
+  #   branches: [ "main", "develop" ]
   workflow_dispatch:
     inputs:
       test_coverage:
