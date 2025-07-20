@@ -14,6 +14,8 @@ dist-ssr
 coverage
 *.local
 
+pids
+
 /cypress/videos/
 /cypress/screenshots/
 

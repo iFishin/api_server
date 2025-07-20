@@ -1,9 +1,11 @@
 name: Release
 
+# 工作流已禁用
 on:
-  push:
-    tags:
-      - 'v*.*.*'  # 语义化版本标签
+  # 禁用自动触发
+  # push:
+  #   tags:
+  #     - 'v*.*.*'  # 语义化版本标签
   workflow_dispatch:
     inputs:
       version:

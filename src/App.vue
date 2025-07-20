@@ -11,7 +11,6 @@
       </aside>
       <main>
         <RouterView />
-        <ApiDocViewer apiGroup="default" v-if="showApiDoc" />
       </main>
     </div>
   </div>
@@ -20,7 +19,6 @@
 <script setup lang="ts">
 import HeaderNavBar from './components/HeaderNavBar.vue';
 import SideNavBar from './components/SideNavBar.vue';
-import ApiDocViewer from './components/ApiDocViewer.vue';
 import { useRoute } from 'vue-router';
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue';
 
@@ -28,14 +26,8 @@ const route = useRoute();
 
 // 路由配置 - 定义哪些页面需要显示侧边栏和API文档
 const routeConfig = {
-  sidebar: ['users', 'http', 'mqtt', 'tcp_udp', 'toolkit', 'webdav'],
-  apiDoc: ['http']
+  sidebar: ['users', 'mqtt', 'tcp_udp', 'toolkit', 'webdav']
 };
-
-const showApiDoc = computed(() => {
-  const currentRoute = route.path.replace(/^\//, '').toLowerCase();
-  return routeConfig.apiDoc.includes(currentRoute) || route.name?.toString().includes('api');
-});
 
 const showAside = computed(() => {
   const currentRoute = route.path.replace(/^\//, '').toLowerCase();

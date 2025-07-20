@@ -19,7 +19,7 @@ try {
   
   // 2. 构建后端
   console.log('⚙️  构建 Node.js 后端...');
-  execSync('npx tsc -p server/tsconfig.json', { stdio: 'inherit' });
+  execSync('npm run build:backend', { stdio: 'inherit' });
   
   // 3. 复制必要文件
   console.log('📁 复制必要文件...');
