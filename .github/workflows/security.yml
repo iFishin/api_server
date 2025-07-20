@@ -1,11 +1,15 @@
 name: Security Scan
 
+# 工作流已禁用
 on:
-  schedule:
-    # 每天凌晨2点运行安全扫描
-    - cron: '0 2 * * *'
-    # 每周一额外运行完整扫描
-    - cron: '0 8 * * 1'
+  # 禁用所有触发器
+  workflow_dispatch: # 只保留手动触发选项，移除自动触发
+  # 原有的触发器已被禁用
+  # schedule:
+  #   # 每天凌晨2点运行安全扫描
+  #   - cron: '0 2 * * *'
+  #   # 每周一额外运行完整扫描
+  #   - cron: '0 8 * * 1'
   workflow_dispatch:
     inputs:
       scan_type:
@@ -30,14 +34,15 @@ on:
         - moderate
         - high
         - critical
-  push:
-    branches: [ main, develop ]
-    paths-ignore:
-      - '*.md'
-      - 'docs/**'
-      - '.gitignore'
-  pull_request:
-    branches: [ main ]
+  # 以下触发器已被禁用
+  # push:
+  #   branches: [ main, develop ]
+  #   paths-ignore:
+  #     - '*.md'
+  #     - 'docs/**'
+  #     - '.gitignore'
+  # pull_request:
+  #   branches: [ main ]
 
 # 并发控制：确保只有一个安全扫描工作流在运行
 concurrency:

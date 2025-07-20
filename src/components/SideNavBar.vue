@@ -48,14 +48,8 @@ export default defineComponent({
                         { id: 'generator', name: 'Generators', icon: 'fas fa-magic', path: '/toolkit?category=generator' },
                         { id: 'encoder', name: 'Encoders', icon: 'fas fa-lock', path: '/toolkit?category=encoder' },
                         { id: 'network', name: 'Network', icon: 'fas fa-network-wired', path: '/toolkit?category=network' },
-                        { id: 'dev', name: 'Development', icon: 'fas fa-code', path: '/toolkit?category=dev' }
-                    ];
-                case 'http':
-                    return store?.state.httpCategories || [
-                        { id: 'get', name: 'GET APIs', icon: 'fas fa-download', path: '/http?category=get' },
-                        { id: 'post', name: 'POST APIs', icon: 'fas fa-upload', path: '/http?category=post' },
-                        { id: 'put', name: 'PUT APIs', icon: 'fas fa-edit', path: '/http?category=put' },
-                        { id: 'delete', name: 'DELETE APIs', icon: 'fas fa-trash', path: '/http?category=delete' }
+                        { id: 'dev', name: 'Development', icon: 'fas fa-code', path: '/toolkit?category=dev' },
+                        { id: 'others', name: 'Others', icon: 'fas fa-folder', path: '/toolkit?category=others' }
                     ];
                 case 'mqtt':
                     return store?.state.mqttCategories || [

@@ -1006,46 +1006,196 @@ def summarize(result: list, workdays: set, holidays: list, total_late_count: int
 
     return info
 
+# 自定义数据处理函数
+def process_custom_data(custom_data_path, hourly_rate=20, overwork=None):
+    """
+    处理自定义加班数据
+    
+    参数:
+        custom_data_path: JSON数据文件路径
+        hourly_rate: 小时工资基数
+        overwork: 自定义加班时间
+        
+    返回值:
+        处理结果
+    """
+    try:
+        # 读取自定义数据
+        with open(custom_data_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            
+        # 提取数据
+        hourly_rate = data.get('hourlyRate', hourly_rate)
+        custom_data = data.get('customData', [])
+        
+        if not custom_data or not isinstance(custom_data, list):
+            print("错误：未提供有效的自定义加班数据")
+            return "错误：未提供有效的自定义加班数据"
+            
+        # 处理日期和时间数据
+        result = []
+        holidays = dict()
+        workdays = set()
+        overtime_income = 0.0
+        
+        # 如果数据格式是直接的打卡记录列表
+        for item in custom_data:
+            date = item.get('date')
+            if not date:
+                continue
+                
+            first_check_time = item.get('startTime', '09:00:00')
+            last_check_time = item.get('endTime', '18:00:00')
+            day_type = item.get('dayType', '工作日')  # 默认为工作日
+            
+            # 如果提供了日期类型，使用它，否则默认为工作日
+            if day_type == '工作日':
+                pass
+            elif day_type == '周末':
+                pass
+            elif day_type == '节假日':
+                holidays[date] = 3  # 假设节假日工资为3倍
+            
+            # 计算加班时长和收益
+            rate = pay_rate_cal(day_type)
+            overtime = overtime_cal(first_check_time, last_check_time, day_type)
+            overtime_pay = overtime_pay_cal(overtime, rate, hourly_rate)
+            overtime_income += float(overtime_pay)
+            allowance = allowance_cal(overtime, day_type)
+            total_income = income_cal(overtime_pay, allowance)
+            late_minutes = late_time_cal(first_check_time, day_type)
+            
+            result.append((date, first_check_time[:8] if len(first_check_time) > 8 else first_check_time, 
+                          last_check_time[:8] if len(last_check_time) > 8 else last_check_time, 
+                          day_type, rate, overtime, overtime_pay, allowance, total_income, late_minutes))
+        
+        # 评价信息
+        rank = ''
+        if overtime_income < 300:
+            rank = '李在赣神魔？'
+        elif 300 <= overtime_income < 500:
+            rank = '不太行'
+        elif 500 <= overtime_income < 1000:
+            rank = '一般，建议多加点 冲1000'
+        elif 1000 <= overtime_income <= 1500:
+            rank = '牛逼'
+        elif 1500 <= overtime_income < 2000:
+            rank = '逆天'
+        elif overtime_income >= 2000:
+            rank = f'你是懂加班的，白加了 {overtime_income - 2000} 元'
+            
+        # 使用自定义的个人假期时间（如果提供）
+        personal_leave_hours = data.get('personalLeaveHours', 0)
+        sick_leave_hours = data.get('sickLeaveHours', 0)
+        
+        info = summarize(result, workdays, holidays, personal_leave_hours, sick_leave_hours)
+        print(f"\n**********************\n义眼丁真，鉴定您的级别为：\n {rank}\n**********************\n")
+        return info
+        
+    except Exception as e:
+        error_msg = f"处理自定义数据出错: {str(e)}"
+        print(error_msg)
+        return error_msg
+
+# 修改工资计算函数以支持自定义小时工资
+def overtime_pay_cal(overtime, rate, hourly_rate=20):
+    """
+    计算加班工资
+    
+    参数:
+        overtime: 加班时长
+        rate: 加班费倍率
+        hourly_rate: 小时工资基数（默认20元/小时）
+        
+    返回值:
+        加班工资
+    """
+    return f"{float(overtime) * float(rate) * float(hourly_rate):.2f}"
+
 # 主程序
 if __name__ == '__main__':
-    variable_overwork = os.getenv("overwork").split('|')
-    user_cookie = sys.argv[1] if len(sys.argv) > 1 else None
-    user_variable = get_user_variable_online(user_cookie)
+    # 添加命令行参数解析
+    parser = argparse.ArgumentParser(description='加班工资计算工具')
+    parser.add_argument('--rate', type=float, default=20, help='小时工资基数')
+    parser.add_argument('--custom', type=str, help='自定义数据JSON文件路径')
+    parser.add_argument('--overwork', type=str, help='自定义加班时间')
+    parser.add_argument('--cookie', type=str, help='Cookie信息')
+    parser.add_argument('--yearMonth', type=str, help='年月(YYYY-MM)')
+    
+    args, unknown = parser.parse_known_args()
 
-    # 当年当月
-    if variable_overwork[1]:
-        target_month = sys.argv[1] if len(sys.argv) > 1 else int(variable_overwork[1])
-        if target_month < 1 or target_month > 12:
-            print("月份不合法，请输入1-12之间的数字。")
-            exit()
+    # 如果提供了自定义数据，优先处理
+    if args.custom:
+        info = process_custom_data(args.custom, args.rate, args.overwork)
+        print(info)
+        exit()
+        
+    # 传统方式处理
+    user_cookie = args.cookie or (sys.argv[1] if len(sys.argv) > 1 else None)
+    if not user_cookie:
+        print("错误：未提供Cookie信息")
+        exit(1)
+        
+    # 获取用户变量
+    try:
+        user_variable = get_user_variable_online(user_cookie)
+    except Exception as e:
+        print(f"获取用户变量失败: {str(e)}")
+        exit(1)
+        
+    # 设置目标年月
+    if args.yearMonth:
+        try:
+            target_year, target_month = args.yearMonth.split('-')
+            target_year = int(target_year)
+            target_month = int(target_month)
+        except:
+            print("年月格式不正确，应为YYYY-MM")
+            exit(1)
     else:
         target_month = datetime.now().month
-    target_year = datetime.now().year
+        target_year = datetime.now().year
+        
     # 获取打卡数据
-    clock_in_data = get_clock_in_data(user_variable, user_cookie, target_month, target_year)
+    try:
+        clock_in_data = get_clock_in_data(user_variable, user_cookie, target_month, target_year)
+    except Exception as e:
+        print(f"获取打卡数据失败: {str(e)}")
+        exit(1)
     
-    holidays = dict()
-    workdays = set()
-    holidays, workdays = get_holiday_data_online(clock_in_data)
-    result = []			    # 这玩意存结果,列表里边是元组,元组可通过下标访问(python限定)
-    group_by_date = {}	    # 按日期统计打卡时间
-    overtime_income = 0.0   # 加班费
+    # 获取节假日数据
+    try:
+        holidays = dict()
+        workdays = set()
+        holidays, workdays = get_holiday_data_online(clock_in_data)
+    except Exception as e:
+        print(f"获取节假日数据失败: {str(e)}")
+        exit(1)
+        
+    # 处理打卡数据
+    result = []                 # 这玩意存结果,列表里边是元组,元组可通过下标访问(python限定)
+    group_by_date = {}          # 按日期统计打卡时间
+    overtime_income = 0.0       # 加班费
+    
     for item in clock_in_data:
-        group_by_date.setdefault(item['SHIFTTERM'], []).append(item['CARDTIME'][11::])		# 过滤掉打卡时间里的年月日
+        group_by_date.setdefault(item['SHIFTTERM'], []).append(item['CARDTIME'][11::])
+        
     for i in group_by_date:
-        sorted(group_by_date[i], key=lambda time: datetime.strptime(time[:8], '%H:%M:%S'))	# 排序,时间早的在前面
-        date = i																# 日期
-        first_check_time = group_by_date[i][0]									# 最早的打卡时间
-        last_check_time = group_by_date[i][-1]									# 最晚的打卡时间
-        day_type = get_day_type(date, holidays, workdays)						# 今天啥日子
-        rate = pay_rate_cal(day_type)											# 加班一小时该给多少钱
-        overtime = overtime_cal(first_check_time, last_check_time, day_type)	# 加了多久班(单位小时)
-        overtime_pay = overtime_pay_cal(overtime, rate)							# 加班费多少
-        overtime_income += float(overtime_pay)									# 总加班费
-        allowance = allowance_cal(overtime, day_type)							# 有没有食补
-        total_income = income_cal(overtime_pay, allowance)						# 一天的总收入
-        late_minutes = late_time_cal(first_check_time, day_type)				# 迟到了多久
+        sorted(group_by_date[i], key=lambda time: datetime.strptime(time[:8], '%H:%M:%S'))
+        date = i
+        first_check_time = group_by_date[i][0]
+        last_check_time = group_by_date[i][-1]
+        day_type = get_day_type(date, holidays, workdays)
+        rate = pay_rate_cal(day_type)
+        overtime = overtime_cal(first_check_time, last_check_time, day_type)
+        overtime_pay = overtime_pay_cal(overtime, rate, args.rate)
+        overtime_income += float(overtime_pay)
+        allowance = allowance_cal(overtime, day_type)
+        total_income = income_cal(overtime_pay, allowance)
+        late_minutes = late_time_cal(first_check_time, day_type)
+        
         result.append((date, first_check_time[:8], last_check_time[:8], day_type, rate, overtime, overtime_pay, allowance, total_income, late_minutes))
+        
     # 评价信息
     rank = ''
     if overtime_income < 300:
@@ -1059,8 +1209,8 @@ if __name__ == '__main__':
     elif 1500 <= overtime_income < 2000:
         rank = '逆天'
     elif overtime_income >= 2000:
-        rank = f'你是懂加班的，白加了 {overtime_pay - 2000} 元'
-    current_year = datetime.now().year
+        rank = f'你是懂加班的，白加了 {overtime_income - 2000} 元'
+        
     info = summarize(result, workdays, holidays, 0, 0)
     print(f"\n**********************\n义眼丁真，鉴定您的级别为：\n {rank}\n**********************\n")
     exit()

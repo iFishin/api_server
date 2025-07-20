@@ -1,11 +1,13 @@
 name: Dependency Updates
 
+# 工作流已禁用
 on:
-  schedule:
-    # 每周一早上8点检查依赖更新
-    - cron: '0 8 * * 1'
-    # 每月1号运行主版本更新检查
-    - cron: '0 8 1 * *'
+  # 禁用所有自动触发器
+  # schedule:
+  #   # 每周一早上8点检查依赖更新
+  #   - cron: '0 8 * * 1'
+  #   # 每月1号运行主版本更新检查
+  #   - cron: '0 8 1 * *'
   workflow_dispatch:
     inputs:
       update_type:

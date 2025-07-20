@@ -41,6 +41,6 @@ fi
 
 # 强制停止残留进程
 echo "清理残留进程..."
-pkill -f "node.*server/server.js" || true
+pkill -f "node.*dist/server/server.js" || true
 
 echo -e "${GREEN}✅ 服务已停止${NC}"

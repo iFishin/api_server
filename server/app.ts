@@ -3,18 +3,19 @@ import cors from 'cors';
 import path from "path";
 import helmet from 'helmet';
 import morgan from 'morgan';
-import userRoutes from './routes/userRoutes';
-import httpRoutes from './routes/httpRoutes';
-import tcpRoutes from './routes/tcpRoutes';
-import udpRoutes from './routes/udpRoutes';
-import mqttRoutes from './routes/mqttRoutes';
-import { errorHandler } from './middlewares/errorHandler';
-import fileRoutes from './routes/fileRoutes';
-import { setupWebDAV } from './services/webdavService';
-import { getApiDocs } from './services/docService';
-import { mqttService } from './services/mqttService';
-import { tcpService } from './services/tcpService';
-import { udpService } from './services/udpService';
+import userRoutes from '@routes/userRoutes';
+import httpRoutes from '@routes/httpRoutes';
+import tcpRoutes from '@routes/tcpRoutes';
+import udpRoutes from '@routes/udpRoutes';
+import mqttRoutes from '@routes/mqttRoutes';
+import apiDocRoutes from '@routes/apiDocRoutes';
+import { errorHandler } from '@middlewares/errorHandler';
+import fileRoutes from '@routes/fileRoutes';
+import { setupWebDAV } from '@services/webdavService';
+import { getApiDocs } from '@services/apiDocService';
+import { mqttService } from '@services/mqttService';
+import { tcpService } from '@services/tcpService';
+import { udpService } from '@services/udpService';
 
 const app = express();
 // 获取项目根目录
@@ -144,6 +145,7 @@ app.use('/api/tcp', tcpRoutes);
 app.use('/api/udp', udpRoutes);
 app.use('/api/mqtt', mqttRoutes);
 app.use('/api/files', fileRoutes);
+app.use('/api/docs', apiDocRoutes);
 
 // 专门处理 favicon.ico 路由
 app.get('/favicon.ico', (req, res) => {

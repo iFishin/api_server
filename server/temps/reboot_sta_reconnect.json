@@ -1,0 +1,82 @@
+{
+    "ConfigForDevices": {
+        "status": "enabled",
+        "stop_bits": 1,
+        "parity": null,
+        "data_bits": 8,
+        "flow_control": {
+            "xon_xoff": false,
+            "rts_cts": false,
+            "dsr_dtr": false
+        },
+        "dtr": false,
+        "rts": false
+    },
+    "Devices": [
+        {
+            "name": "DeviceA",
+            "port": "COM53",
+            "baud_rate": 9600
+        },
+        {
+            "name": "DebugA",
+            "port": "COM73",
+            "baud_rate": 115200,
+            "status": "enabled",
+            "monitor": true
+        }
+    ],
+    "ConfigForCommands": {
+        "status": "enabled",
+        "timeout": 3000,
+        "concurrent_strategy": "sequential",
+        "error_actions": [
+            {
+                "retry": 1
+            }
+        ]
+    },
+    "Commands": [
+        {
+            "command": "AT+QRST",
+            "expected_responses": [
+                "ready"
+            ],
+            "device": "DeviceA",
+            "timeout": 16000,
+            "success_actions": [],
+            "order": 1
+        },
+        {
+            "command": "AT+QECHO=1",
+            "expected_responses": [
+                "OK"
+            ],
+            "device": "DeviceA",
+            "timeout": 3000,
+            "order": 2,
+            "success_actions": []
+        },
+        {
+            "command": "AT+QSTAST",
+            "expected_responses": [
+                "STATION_UP"
+            ],
+            "device": "DeviceA",
+            "timeout": 3000,
+            "order": 2,
+            "success_actions": []
+        },
+        {
+            "command": "AT+QGETWIFISTATE",
+            "expected_responses": [
+                "ssid=NewMar"
+            ],  
+            "device": "DeviceA",
+            "timeout": 3000,
+            "order": 3,
+            "success_actions": []
+        }
+
+    ]
+}

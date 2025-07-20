@@ -270,7 +270,7 @@
     { id: 'encoder', name: 'Encoders', icon: 'fas fa-lock' },
     { id: 'network', name: 'Network', icon: 'fas fa-network-wired' },
     { id: 'dev', name: 'Development', icon: 'fas fa-code' },
-    { id: 'others', name: 'Others', icon: 'fas fa-code' }
+    { id: 'others', name: 'Others', icon: 'fas fa-folder' }
   ]);
   
   // 工具列表
@@ -421,7 +421,7 @@
       name: 'Overtime Calculator',
       description: 'Calculate overtime pay based on hours worked',
       icon: 'fas fa-clock',
-      category: 'dev',
+      category: 'others',
       tags: ['Overtime', 'Pay', 'Calculator'],
       component: OvertimeCalculator
     }
@@ -1434,7 +1434,6 @@
     flex: 1;
     overflow-y: auto;
     padding: 0 10px;
-    max-height: calc(100vh - 60px); /* 减去头部高度 */
   }
 
   /* 滚动条样式 */
@@ -1566,7 +1565,6 @@
   :deep(textarea) {
     flex: 1;
     padding: 1rem 1.25rem;
-    border: none;
     outline: none;
     font-family: 'Fira Code', 'Monaco', monospace;
     font-size: 0.875rem;
@@ -1575,7 +1573,6 @@
     background: #ffffff;
     color: #1e293b;
     min-height: 200px;
-    max-height: calc(60vh - 120px); /* 限制最大高度，为头部和按钮留空间 */
     overflow-y: auto; /* 启用垂直滚动 */
   }
 
@@ -1597,7 +1594,6 @@
     border: none;
     outline: none;
     min-height: 200px;
-    max-height: calc(60vh - 120px); /* 限制最大高度，为头部和按钮留空间 */
   }
 
   /* 特殊输入框 */
