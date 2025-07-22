@@ -110,7 +110,16 @@ app.use(helmet({
   hsts: false  // 在开发/测试环境禁用 HSTS
 }));
 app.use(morgan('dev'));
-app.use(express.json());
+
+// 条件性的 JSON 解析中间件 - 跳过 PUT 文件上传接口
+app.use((req, res, next) => {
+  // 跳过 PUT /api/http/put_file/* 路径的 JSON 解析
+  if (req.method === 'PUT' && req.path.startsWith('/api/http/put_file/')) {
+    return next();
+  }
+  // 对其他路径应用 JSON 解析
+  express.json()(req, res, next);
+});
 
 // 调试中间件
 app.use((req, res, next) => {

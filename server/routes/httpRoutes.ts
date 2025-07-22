@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import * as httpController from '@controllers/httpController';
 import { handleCalculateOvertime } from '@controllers/overtimeController';
@@ -8,6 +8,25 @@ import { getApiDocs } from '@services/apiDocService';
 const upload = multer({ dest: 'temps/' });
 const router = Router();
 
+// 原始数据中间件 - 用于处理 PUT 文件接口
+const rawDataMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  let data = '';
+  
+  req.on('data', (chunk) => {
+    data += chunk;
+  });
+  
+  req.on('end', () => {
+    // 将原始数据存储到 req.rawBody
+    (req as any).rawBody = data;
+    next();
+  });
+  
+  req.on('error', (err) => {
+    next(err);
+  });
+};
+
 // API 文档已经移到专门的路由 /api/docs
 
 // 文件操作路由
@@ -15,6 +34,7 @@ router.get('/files', httpController.getFiles);
 router.delete('/files/:filename', httpController.deleteFile);
 router.post('/upload', upload.single('file'), httpController.uploadFile);
 router.get('/files/:filename/download', httpController.downloadFile);
+router.put('/put_file/:filename', rawDataMiddleware, httpController.put_file);
 
 // 基础 HTTP 路由
 router.get('/', httpController.getDefault);
