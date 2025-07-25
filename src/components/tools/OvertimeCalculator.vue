@@ -9,6 +9,9 @@
             <button @click="clearInput" class="btn btn-secondary">
               <i class="fas fa-trash"></i> 清空
             </button>
+            <button @click="resetToExample" class="btn btn-secondary">
+              <i class="fas fa-file-import"></i> 示例
+            </button>
             <button @click="calculateOvertime" class="btn btn-primary">
               <i class="fas fa-calculator"></i> 计算
             </button>
@@ -97,7 +100,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
-import axios from 'axios';
+import api from '@/utils/api';
 
 // 表单数据
 const jsonInput = ref(getDefaultJsonData());
@@ -237,8 +240,34 @@ function validateJson(): void {
 
 // 清空输入
 function clearInput(): void {
+  jsonInput.value = '';
+  validationError.value = '';
+  results.value = '';
+  error.value = '';
+  // 重置统计数据
+  summaryData.totalHours = 0;
+  summaryData.workdayHours = 0;
+  summaryData.weekendHours = 0;
+  summaryData.holidayHours = 0;
+  summaryData.totalPay = 0;
+  summaryData.rankLevel = '';
+  summaryData.rankText = '';
+}
+
+// 重置为示例数据
+function resetToExample(): void {
   jsonInput.value = getDefaultJsonData();
   validationError.value = '';
+  results.value = '';
+  error.value = '';
+  // 重置统计数据
+  summaryData.totalHours = 0;
+  summaryData.workdayHours = 0;
+  summaryData.weekendHours = 0;
+  summaryData.holidayHours = 0;
+  summaryData.totalPay = 0;
+  summaryData.rankLevel = '';
+  summaryData.rankText = '';
 }
 
 // 计算加班时间
@@ -267,7 +296,7 @@ async function calculateOvertime(): Promise<void> {
     // 发送请求到API
 
     // 发送请求到API
-    const response = await axios.post('/api/http/overtime/calculate', requestData);
+    const response = await api.post('/api/http/overtime/calculate', requestData);
 
     if (response.status === 200 && response.data) {
       results.value = response.data.result || '计算完成，但没有返回数据';

@@ -92,29 +92,53 @@ fi
 echo -e "${BLUE}🔍 测试服务...${NC}"
 sleep 2
 
+# 获取当前机器的IP地址
+LOCAL_IP=$(hostname -I | awk '{print $1}')
+echo "本机IP地址: $LOCAL_IP"
+
 # 测试直接访问
 if curl -s http://localhost:3000/health > /dev/null; then
-    echo -e "${GREEN}✅ 后端服务 (3000) 正常${NC}"
+    echo -e "${GREEN}✅ 后端服务 (localhost:3000) 正常${NC}"
 else
-    echo -e "${RED}❌ 后端服务 (3000) 异常${NC}"
+    echo -e "${RED}❌ 后端服务 (localhost:3000) 异常${NC}"
+fi
+
+# 测试IP访问
+if curl -s http://$LOCAL_IP:3000/health > /dev/null; then
+    echo -e "${GREEN}✅ 后端服务 ($LOCAL_IP:3000) 正常${NC}"
+else
+    echo -e "${RED}❌ 后端服务 ($LOCAL_IP:3000) 异常${NC}"
 fi
 
 # 测试 Nginx 代理
 if curl -s http://localhost/health > /dev/null; then
-    echo -e "${GREEN}✅ Nginx 代理 (80) 正常${NC}"
+    echo -e "${GREEN}✅ Nginx 代理 (localhost:80) 正常${NC}"
 else
     echo -e "${YELLOW}⚠️  Nginx 代理可能需要配置${NC}"
 fi
 
+# 测试 Nginx IP 访问
+if curl -s http://$LOCAL_IP/health > /dev/null; then
+    echo -e "${GREEN}✅ Nginx 代理 ($LOCAL_IP:80) 正常${NC}"
+else
+    echo -e "${YELLOW}⚠️  Nginx IP 访问可能需要配置${NC}"
+fi
+
 echo -e "${GREEN}🎉 启动完成！${NC}"
 echo -e "${BLUE}📋 服务信息:${NC}"
-echo "  - 前端访问: http://localhost"
-echo "  - API 接口: http://localhost/api/"
-echo "  - WebDAV: http://localhost/webdav/"
-echo "  - 直接后端: http://localhost:3000"
-echo "  - HTTPS: https://localhost:3443"
+echo "  - 前端访问: http://localhost 或 http://$LOCAL_IP"
+echo "  - API 接口: http://localhost/api/ 或 http://$LOCAL_IP/api/"
+echo "  - WebDAV: http://localhost/webdav/ 或 http://$LOCAL_IP/webdav/"
+echo "  - 直接后端: http://localhost:3000 或 http://$LOCAL_IP:3000"
+echo "  - HTTPS: https://localhost:3443 或 https://$LOCAL_IP:3443"
+echo ""
+echo -e "${YELLOW}🌐 局域网访问说明:${NC}"
+echo "  - 使用 $LOCAL_IP 可从局域网其他设备访问"
+echo "  - 确保防火墙允许 80, 3000, 3443 端口"
+echo "  - 如果无法访问，请检查 Nginx 配置"
 echo ""
 echo -e "${BLUE}📝 管理命令:${NC}"
 echo "  - 查看日志: tail -f $PROJECT_ROOT/logs/server.log"
-echo "  - 停止服务: $PROJECT_ROOT/scripts/stop-production.sh"
-echo "  - 重启服务: $PROJECT_ROOT/scripts/restart-production.sh"
+echo "  - 停止服务: $PROJECT_ROOT/scripts/deployment/stop-production.sh"
+echo "  - 重启服务: $PROJECT_ROOT/scripts/deployment/restart-production.sh"
+echo "  - 配置局域网访问: $PROJECT_ROOT/scripts/deployment/configure-lan-access.sh"

@@ -181,6 +181,14 @@ app.get('/favicon.ico', (req, res) => {
 });
 
 // 健康检查端点
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',

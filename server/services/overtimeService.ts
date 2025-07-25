@@ -23,6 +23,33 @@ interface PunchRecord {
   K_LOCKED: string;
 }
 
+// 定义处理结果的接口
+interface ProcessedOvertimeRecord {
+  date: string;
+  startTime: string;
+  endTime: string;
+  dayType: string;
+  payRate: number;
+  overtimeHours: number;
+  overtimePay: number;
+  mealAllowance: number;
+  totalIncome: number;
+  lateMinutes: number;
+}
+
+interface HolidayInfo {
+  holiday: boolean;
+  name?: string;
+  wage?: number;
+  date?: string;
+  rest?: number;
+}
+
+interface HolidayApiResponse {
+  code: number;
+  holiday: Record<string, HolidayInfo>;
+}
+
 interface OvertimeRecord {
   date: string;
   startTime: string;
@@ -88,7 +115,7 @@ export const processOvertimeJson = async (overtimeData: OvertimeData): Promise<s
     const result = processCustomOvertimeData(normalizedData, Number(hourlyRate));
     
     // 汇总计算结果
-    const summary = summarizeResults(result, personalLeaveHours, sickLeaveHours);
+    const summary = summarizeResults(result, personalLeaveHours, sickLeaveHours, Number(hourlyRate));
     
     // 格式化输出
     return formatSummary(summary);
@@ -100,7 +127,7 @@ export const processOvertimeJson = async (overtimeData: OvertimeData): Promise<s
 };
 
 /**
- * 处理自定义加班数据
+ * 处理自定义加班数据（支持矿工时间处理）
  * 
  * @param customData 自定义加班数据
  * @param hourlyRate 小时工资基数
@@ -109,8 +136,8 @@ export const processOvertimeJson = async (overtimeData: OvertimeData): Promise<s
 function processCustomOvertimeData(
   customData: OvertimeRecord[], 
   hourlyRate: number
-): Array<[string, string, string, string, number, number, number, number, number, number]> {
-  const result: Array<[string, string, string, string, number, number, number, number, number, number]> = [];
+): ProcessedOvertimeRecord[] {
+  const result: ProcessedOvertimeRecord[] = [];
   let overtimeIncome = 0;
   
   // 按日期处理每条加班记录
@@ -122,40 +149,134 @@ function processCustomOvertimeData(
     const lastCheckTime = formatTimeString(endTime);
     
     // 根据日期类型计算加班费率
-    const rate = calculatePayRate(dayType);
+    const payRate = calculatePayRate(dayType);
     
-    // 计算加班时长
-    const overtime = calculateOvertimeHours(firstCheckTime, lastCheckTime, dayType);
+    // 计算加班时长（可能为负数，表示矿工时间）
+    const overtimeHours = calculateOvertimeHours(firstCheckTime, lastCheckTime, dayType);
     
-    // 计算加班薪资
-    const overtimePay = calculateOvertimePay(overtime, rate, hourlyRate);
+    // 计算加班薪资（矿工时间会导致负薪资）
+    const overtimePay = calculateOvertimePay(overtimeHours, payRate, hourlyRate);
     overtimeIncome += overtimePay;
     
-    // 计算餐补
-    const allowance = calculateAllowance(overtime, dayType);
+    // 计算餐补（只有正加班时长才有餐补）
+    const mealAllowance = overtimeHours > 0 ? calculateAllowance(overtimeHours, dayType) : 0;
     
     // 计算总收入
-    const totalIncome = overtimePay + allowance;
+    const totalIncome = overtimePay + mealAllowance;
     
     // 计算迟到时长
     const lateMinutes = calculateLateTime(firstCheckTime, dayType);
     
+    // 记录详细信息用于调试
+    if (overtimeHours < 0) {
+      console.log(`矿工记录 - 日期: ${date}, 矿工时长: ${Math.abs(overtimeHours).toFixed(2)}小时, 扣除薪资: ${Math.abs(overtimePay).toFixed(2)}元`);
+    }
+    
     // 添加到结果中
-    result.push([
+    result.push({
       date,
-      firstCheckTime,
-      lastCheckTime,
+      startTime: firstCheckTime,
+      endTime: lastCheckTime,
       dayType,
-      rate,
-      overtime,
+      payRate,
+      overtimeHours,
       overtimePay,
-      allowance,
+      mealAllowance,
       totalIncome,
       lateMinutes
-    ]);
+    });
   }
   
   return result;
+}
+
+// 缓存节假日数据，避免重复请求
+const holidayCache = new Map<string, Record<string, HolidayInfo>>();
+
+/**
+ * 获取指定年份的节假日信息
+ * 
+ * @param year 年份
+ * @returns 节假日信息
+ */
+async function getHolidayInfo(year: string): Promise<Record<string, HolidayInfo>> {
+  // 检查缓存
+  if (holidayCache.has(year)) {
+    return holidayCache.get(year)!;
+  }
+  
+  try {
+    const response = await fetch(`https://timor.tech/api/holiday/year/${year}`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json() as HolidayApiResponse;
+    
+    if (data.code !== 0) {
+      throw new Error(`API返回错误码: ${data.code}`);
+    }
+    
+    // 缓存结果
+    holidayCache.set(year, data.holiday);
+    
+    return data.holiday;
+    
+  } catch (error) {
+    console.error(`获取${year}年节假日信息失败:`, error);
+    
+    // 返回空对象，使用基本的周末判断逻辑
+    return {};
+  }
+}
+
+/**
+ * 智能判断日期类型（使用在线节假日API）
+ * 
+ * @param date 日期字符串，格式：YYYY-MM-DD
+ * @returns 日期类型：'工作日' | '周末' | '节假日'
+ */
+async function intelligentDayType(date: string): Promise<string> {
+  try {
+    const year = date.split('-')[0];
+    const holidayInfo = await getHolidayInfo(year);
+    
+    // 检查是否有该日期的节假日信息
+    if (holidayInfo[date]) {
+      const dayInfo = holidayInfo[date];
+      
+      if (dayInfo.holiday) {
+        // 是节假日
+        return '节假日';
+      } else if (dayInfo.rest && dayInfo.rest === 1) {
+        // 是调休的休息日（通常是周末）
+        return '周末';
+      } else {
+        // 是调休的工作日
+        return '工作日';
+      }
+    }
+    
+    // 没有特殊信息，使用基本的周末判断
+    const dayOfWeek = new Date(date).getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      return '周末';
+    }
+    
+    return '工作日';
+    
+  } catch (error) {
+    console.error(`判断日期类型失败，使用基本逻辑: ${date}`, error);
+    
+    // API调用失败时的兜底逻辑
+    const dayOfWeek = new Date(date).getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      return '周末';
+    }
+    
+    return '工作日';
+  }
 }
 
 /**
@@ -217,12 +338,12 @@ function calculatePayRate(dayType: string): number {
 }
 
 /**
- * 计算加班时长
+ * 计算加班时长（支持弹性上下班和矿工时间扣除）
  * 
  * @param firstCheckTime 第一次打卡时间
  * @param lastCheckTime 最后一次打卡时间
  * @param dayType 日期类型
- * @returns 加班时长（小时）
+ * @returns 加班时长（小时，可能为负数表示矿工时间）
  */
 function calculateOvertimeHours(firstCheckTime: string, lastCheckTime: string, dayType: string): number {
   // 检查是否为异地打卡
@@ -235,44 +356,30 @@ function calculateOvertimeHours(firstCheckTime: string, lastCheckTime: string, d
   const lastTime = parseTimeString(lastCheckTime);
   
   if (dayType === '工作日') {
-    // 工作日: 18:30后开始计算加班
-    const overtimeStartHour = 18;
-    const overtimeStartMinute = 30;
+    // 工作日弹性上下班时间配置
+    const flexibleStartEarly = { hours: 8, minutes: 30 };  // 最早上班时间 8:30
+    const flexibleStartLate = { hours: 9, minutes: 30 };   // 最晚上班时间 9:30
+    const requiredWorkHours = 8; // 标准工作时长（不含午休）
+    const lunchBreakHours = 1.5;  // 午休时长 1.5小时（12:00-13:30）
+    const overtimeStartHour = 19;   // 19:00后开始计算加班
+    const overtimeStartMinute = 0;
     
-    // 如果下班时间晚于18:30，计算加班时长
-    if (lastTime.hours > overtimeStartHour || 
-        (lastTime.hours === overtimeStartHour && lastTime.minutes >= overtimeStartMinute)) {
-      
-      // 计算加班开始时间点（18:30）对应的分钟数
-      const overtimeStartTotalMinutes = overtimeStartHour * 60 + overtimeStartMinute;
-      
-      // 计算下班时间对应的分钟数
-      const lastTimeTotalMinutes = lastTime.hours * 60 + lastTime.minutes;
-      
-      // 计算加班时长（小时）
-      return (lastTimeTotalMinutes - overtimeStartTotalMinutes) / 60;
-    }
-    
-    return 0;
-  } else {
-    // 周末和节假日: 全天计算加班
-    // 计算工作总时长（小时）
-    const workTotalMinutes = 
-      (lastTime.hours * 60 + lastTime.minutes) - 
-      (firstTime.hours * 60 + firstTime.minutes);
-      
-    // 减去午休时间（如果跨越了午休时间）
-    const lunchBreakStart = 12 * 60; // 12:00
-    const lunchBreakEnd = 13 * 60;   // 13:00
-    
+    // 计算实际工作时长（扣除午休）
     const firstTimeMinutes = firstTime.hours * 60 + firstTime.minutes;
     const lastTimeMinutes = lastTime.hours * 60 + lastTime.minutes;
+    
+    // 计算总在公司时间（分钟）
+    const totalMinutesInOffice = lastTimeMinutes - firstTimeMinutes;
+    
+    // 扣除午休时间（如果跨越了午休时间）
+    const lunchBreakStart = 12 * 60; // 12:00
+    const lunchBreakEnd = 13.5 * 60;   // 13:30
     
     let lunchBreakDeduction = 0;
     
     // 如果工作时间跨越了午休时间
     if (firstTimeMinutes < lunchBreakStart && lastTimeMinutes > lunchBreakEnd) {
-      lunchBreakDeduction = 60; // 扣除1小时午休
+      lunchBreakDeduction = 90; // 扣除1.5小时午休（12:00-13:30）
     } else if (firstTimeMinutes < lunchBreakStart && lastTimeMinutes > lunchBreakStart && lastTimeMinutes <= lunchBreakEnd) {
       lunchBreakDeduction = lastTimeMinutes - lunchBreakStart;
     } else if (firstTimeMinutes >= lunchBreakStart && firstTimeMinutes < lunchBreakEnd && lastTimeMinutes > lunchBreakEnd) {
@@ -281,7 +388,60 @@ function calculateOvertimeHours(firstCheckTime: string, lastCheckTime: string, d
       lunchBreakDeduction = lastTimeMinutes - firstTimeMinutes;
     }
     
-    return (workTotalMinutes - lunchBreakDeduction) / 60;
+    // 实际工作时长（小时）
+    const actualWorkHours = Math.max(0, (totalMinutesInOffice - lunchBreakDeduction) / 60);
+    
+    console.log(`工作日计算 - 上班: ${firstCheckTime}, 下班: ${lastCheckTime}, 实际工作: ${actualWorkHours.toFixed(2)}小时, 要求: ${requiredWorkHours}小时`);
+    
+    // 计算矿工时间（不足8小时的部分）
+    const underworkHours = Math.max(0, requiredWorkHours - actualWorkHours);
+    
+    // 计算19:00后的加班时间
+    const overtimeStartTotalMinutes = overtimeStartHour * 60 + overtimeStartMinute;
+    let pureOvertimeHours = 0;
+    
+    if (lastTimeMinutes > overtimeStartTotalMinutes) {
+      // 19:00后的时间才算纯加班
+      const overtimeMinutes = lastTimeMinutes - overtimeStartTotalMinutes;
+      pureOvertimeHours = overtimeMinutes / 60;
+    }
+    
+    // 最终加班时长 = 纯加班时长 - 矿工时间
+    const finalOvertimeHours = pureOvertimeHours - underworkHours;
+    
+    if (underworkHours > 0) {
+      console.log(`矿工时间检测 - 矿工: ${underworkHours.toFixed(2)}小时, 纯加班: ${pureOvertimeHours.toFixed(2)}小时, 最终加班: ${finalOvertimeHours.toFixed(2)}小时`);
+    }
+    
+    return finalOvertimeHours;
+  } else {
+    // 周末和节假日: 全天计算加班（保持原有逻辑）
+    // 计算工作总时长（小时）
+    const workTotalMinutes = 
+      (lastTime.hours * 60 + lastTime.minutes) - 
+      (firstTime.hours * 60 + firstTime.minutes);
+      
+    // 减去午休时间（如果跨越了午休时间）
+    const lunchBreakStart = 12 * 60; // 12:00
+    const lunchBreakEnd = 13.5 * 60;   // 13:30
+    
+    const firstTimeMinutes = firstTime.hours * 60 + firstTime.minutes;
+    const lastTimeMinutes = lastTime.hours * 60 + lastTime.minutes;
+    
+    let lunchBreakDeduction = 0;
+    
+    // 如果工作时间跨越了午休时间
+    if (firstTimeMinutes < lunchBreakStart && lastTimeMinutes > lunchBreakEnd) {
+      lunchBreakDeduction = 90; // 扣除1.5小时午休（12:00-13:30）
+    } else if (firstTimeMinutes < lunchBreakStart && lastTimeMinutes > lunchBreakStart && lastTimeMinutes <= lunchBreakEnd) {
+      lunchBreakDeduction = lastTimeMinutes - lunchBreakStart;
+    } else if (firstTimeMinutes >= lunchBreakStart && firstTimeMinutes < lunchBreakEnd && lastTimeMinutes > lunchBreakEnd) {
+      lunchBreakDeduction = lunchBreakEnd - firstTimeMinutes;
+    } else if (firstTimeMinutes >= lunchBreakStart && firstTimeMinutes < lunchBreakEnd && lastTimeMinutes <= lunchBreakEnd) {
+      lunchBreakDeduction = lastTimeMinutes - firstTimeMinutes;
+    }
+    
+    return Math.max(0, (workTotalMinutes - lunchBreakDeduction) / 60);
   }
 }
 
@@ -300,11 +460,16 @@ function calculateOvertimePay(overtime: number, rate: number, hourlyRate: number
 /**
  * 计算餐补
  * 
- * @param overtime 加班时长
+ * @param overtime 加班时长（小时，可能为负数）
  * @param dayType 日期类型
  * @returns 餐补金额
  */
 function calculateAllowance(overtime: number, dayType: string): number {
+  // 只有正加班时长才有餐补，矿工时间不给餐补
+  if (overtime <= 0) {
+    return 0;
+  }
+  
   // 工作日加班超过1小时给20,周末和节假日超过4小时给20
   if (dayType === '工作日') {
     return overtime >= 1 ? 20 : 0;
@@ -314,7 +479,7 @@ function calculateAllowance(overtime: number, dayType: string): number {
 }
 
 /**
- * 计算迟到时间
+ * 计算迟到时间（支持弹性上班）
  * 
  * @param firstCheckTime 第一次打卡时间
  * @param dayType 日期类型
@@ -326,36 +491,23 @@ function calculateLateTime(firstCheckTime: string, dayType: string): number {
     return 0;
   }
   
-  const workStartTime = { hours: 9, minutes: 0 }; // 9:00
+  // 弹性上班时间：最晚9:30算迟到
+  const flexibleLatestStart = { hours: 9, minutes: 30 };
   const firstTime = parseTimeString(firstCheckTime);
   
   // 计算迟到分钟
-  const workStartTotalMinutes = workStartTime.hours * 60 + workStartTime.minutes;
-  const firstTimeTotalMinutes = firstTime.hours * 60 + firstTime.minutes;
+  const flexibleLatestStartMinutes = flexibleLatestStart.hours * 60 + flexibleLatestStart.minutes;
+  const firstTimeMinutes = firstTime.hours * 60 + firstTime.minutes;
   
-  return firstTimeTotalMinutes > workStartTotalMinutes 
-    ? firstTimeTotalMinutes - workStartTotalMinutes 
+  const lateMinutes = firstTimeMinutes > flexibleLatestStartMinutes 
+    ? firstTimeMinutes - flexibleLatestStartMinutes 
     : 0;
-}
-
-/**
- * 解析时间字符串
- * 
- * @param timeString 时间字符串，格式如"HH:MM:SS"
- * @returns 解析后的时间对象
- */
-function parseTimeString(timeString: string): { hours: number, minutes: number, seconds: number } {
-  // 去除可能的异地打卡标记
-  const cleanTimeString = timeString.replace(/\(异地打卡\)$/g, '').trim();
+    
+  if (lateMinutes > 0) {
+    console.log(`迟到计算 - 上班时间: ${firstCheckTime}, 迟到: ${lateMinutes}分钟`);
+  }
   
-  // 解析时间
-  const timeParts = cleanTimeString.split(':');
-  
-  return {
-    hours: parseInt(timeParts[0], 10) || 0,
-    minutes: parseInt(timeParts[1], 10) || 0,
-    seconds: timeParts.length > 2 ? parseInt(timeParts[2], 10) || 0 : 0
-  };
+  return lateMinutes;
 }
 
 /**
@@ -386,17 +538,38 @@ function formatTimeString(timeString: string): string {
 }
 
 /**
+ * 解析时间字符串为 { hours, minutes, seconds }
+ * 支持 "HH:MM", "HH:MM:SS" 格式
+ */
+function parseTimeString(timeString: string): { hours: number; minutes: number; seconds: number } {
+  const parts = timeString.split(':');
+  if (parts.length === 2) {
+    const [hours, minutes] = parts.map(Number);
+    if (isNaN(hours) || isNaN(minutes)) throw new Error('Invalid time string');
+    return { hours, minutes, seconds: 0 };
+  } else if (parts.length === 3) {
+    const [hours, minutes, seconds] = parts.map(Number);
+    if (isNaN(hours) || isNaN(minutes) || isNaN(seconds)) throw new Error('Invalid time string');
+    return { hours, minutes, seconds };
+  } else {
+    throw new Error('Invalid time string');
+  }
+}
+
+/**
  * 汇总计算结果
  * 
  * @param result 处理结果
  * @param personalLeaveHours 个人假期时长
  * @param sickLeaveHours 病假时长
+ * @param hourlyRate 小时工资基数
  * @returns 汇总结果
  */
 function summarizeResults(
-  result: Array<[string, string, string, string, number, number, number, number, number, number]>,
+  result: ProcessedOvertimeRecord[],
   personalLeaveHours: number,
-  sickLeaveHours: number
+  sickLeaveHours: number,
+  hourlyRate: number
 ): SummaryResult {
   // 初始化汇总数据
   let totalOvertimePay = 0;
@@ -415,33 +588,29 @@ function summarizeResults(
 
   // 根据结果计算汇总数据
   for (const record of result) {
-    const dayType = record[3];
-    const overtime = record[5];
-    const overtimePay = record[6];
-    const allowance = record[7];
-    const recordLateMinutes = record[9];
+    const { dayType, overtimeHours, overtimePay, mealAllowance, lateMinutes: recordLateMinutes } = record;
     
     // 累计加班费
     totalOvertimePay += overtimePay;
     
     // 累计餐补
-    totalMealAllowance += allowance;
+    totalMealAllowance += mealAllowance;
     
     // 按日期类型累计加班时长和收入
     if (dayType === '工作日') {
-      workdayOvertimeHours += overtime;
+      workdayOvertimeHours += overtimeHours;
       workdayOvertimePay += overtimePay;
       actualWorkdays += 1;
     } else if (dayType === '周末') {
-      weekendOvertimeHours += overtime;
+      weekendOvertimeHours += overtimeHours;
       weekendOvertimePay += overtimePay;
     } else if (dayType === '节假日') {
-      holidayOvertimeHours += overtime;
+      holidayOvertimeHours += overtimeHours;
       holidayOvertimePay += overtimePay;
     }
     
     // 累计总收入
-    totalIncome += overtimePay + allowance;
+    totalIncome += overtimePay + mealAllowance;
     
     // 累计迟到信息
     if (recordLateMinutes > 0) {
@@ -451,12 +620,12 @@ function summarizeResults(
   }
   
   // 计算应出勤天数
-  const workdayRecords = result.filter(r => r[3] === '工作日').length;
-  const weekendRecords = result.filter(r => r[3] === '周末').length;
-  const holidayRecords = result.filter(r => r[3] === '节假日').length;
+  const workdayRecords = result.filter(r => r.dayType === '工作日').length;
+  const weekendRecords = result.filter(r => r.dayType === '周末').length;
+  const holidayRecords = result.filter(r => r.dayType === '节假日').length;
   requiredWorkdays = workdayRecords;
   
-  // 处理假期扣减
+  // 处理假期扣减逻辑...
   let personalLeaveRemainHours = personalLeaveHours;
   
   // 优先从工作日加班时长中扣减
@@ -486,10 +655,10 @@ function summarizeResults(
     personalLeaveRemainHours = 0;
   }
   
-  // 计算实际加班收入
-  const actualWorkdayOvertimePay = actualWorkdayHours * 20; // 假设工作日小时工资为20
-  const actualWeekendOvertimePay = actualWeekendHours * 30; // 假设周末小时工资为30
-  const actualHolidayOvertimePay = actualHolidayHours * 60; // 假设节假日小时工资为60
+  // 计算实际加班收入（使用正确的费率计算）
+  const actualWorkdayOvertimePay = actualWorkdayHours * calculatePayRate('工作日') * hourlyRate;
+  const actualWeekendOvertimePay = actualWeekendHours * calculatePayRate('周末') * hourlyRate;
+  const actualHolidayOvertimePay = actualHolidayHours * calculatePayRate('节假日') * hourlyRate;
   const actualOvertimePay = actualWorkdayOvertimePay + actualWeekendOvertimePay + actualHolidayOvertimePay;
   const actualTotalIncome = actualOvertimePay + totalMealAllowance;
   
@@ -551,33 +720,39 @@ function formatSummary(summary: SummaryResult): string {
   
   // 构建表格
   const incomeTable = [
-    `总加班薪资: ${formatNumber(income.totalOvertimePay)}`,
-    `实际加班薪资: ${formatNumber(income.actualOvertimePay)}`,
-    `总餐补: ${formatNumber(income.totalMealAllowance)}`,
-    `工作日加班收入: ${formatNumber(income.workdayOvertimePay)}`,
-    `周末加班收入: ${formatNumber(income.weekendOvertimePay)}`,
-    `节假日加班收入: ${formatNumber(income.holidayOvertimePay)}`,
-    `总收入: ${formatNumber(income.totalIncome)}`,
-    `扣减后总收入: ${formatNumber(income.actualTotalIncome)}`
+    `总加班薪资: ${formatNumber(income.totalOvertimePay)}元 ${income.totalOvertimePay < 0 ? '(含矿工扣除)' : ''}`,
+    `实际加班薪资: ${formatNumber(income.actualOvertimePay)}元`,
+    `总餐补: ${formatNumber(income.totalMealAllowance)}元`,
+    `工作日加班收入: ${formatNumber(income.workdayOvertimePay)}元 ${income.workdayOvertimePay < 0 ? '(矿工扣除)' : ''}`,
+    `周末加班收入: ${formatNumber(income.weekendOvertimePay)}元`,
+    `节假日加班收入: ${formatNumber(income.holidayOvertimePay)}元`,
+    `总收入: ${formatNumber(income.totalIncome)}元`,
+    `扣减后总收入: ${formatNumber(income.actualTotalIncome)}元`
   ].join('\n');
   
   const hoursTable = [
-    `工作日加班时长: ${formatNumber(hours.workdayOvertimeHours)} 小时`,
-    `周末加班时长: ${formatNumber(hours.weekendOvertimeHours)} 小时`,
-    `节假日加班时长: ${formatNumber(hours.holidayOvertimeHours)} 小时`,
-    `总加班时长: ${formatNumber(hours.totalOvertimeHours)} 小时`,
-    `扣减后加班时长: ${formatNumber(hours.actualOvertimeHours)} 小时`
+    `工作日加班时长: ${formatNumber(hours.workdayOvertimeHours)}小时 ${hours.workdayOvertimeHours < 0 ? '(矿工时间)' : ''}`,
+    `周末加班时长: ${formatNumber(hours.weekendOvertimeHours)}小时`,
+    `节假日加班时长: ${formatNumber(hours.holidayOvertimeHours)}小时`,
+    `总加班时长: ${formatNumber(hours.totalOvertimeHours)}小时`,
+    `扣减后加班时长: ${formatNumber(hours.actualOvertimeHours)}小时`
   ].join('\n');
   
   const attendanceTable = [
-    `当前迟到次数: ${attendance.lateCount} 次`,
-    `当前迟到时长: ${attendance.lateMinutes} 分钟`,
-    `应出勤天数: ${attendance.requiredWorkdays} 天`,
-    `实际出勤天数: ${attendance.actualWorkdays} 天`
+    `当前迟到次数: ${attendance.lateCount}次`,
+    `当前迟到时长: ${attendance.lateMinutes}分钟`,
+    `应出勤天数: ${attendance.requiredWorkdays}天`,
+    `实际出勤天数: ${attendance.actualWorkdays}天`
   ].join('\n');
+  
+  // 检查是否有矿工时间
+  const hasUnderwork = hours.workdayOvertimeHours < 0 || income.totalOvertimePay < 0;
+  const underworkWarning = hasUnderwork ? 
+    '\n⚠️  检测到矿工时间！工作日未满8小时会从加班时长中扣除\n' : '';
   
   // 组合输出
   return [
+    underworkWarning,
     '\n【收入统计】\n' + incomeTable,
     '\n【工时统计】\n' + hoursTable,
     '\n【考勤统计】\n' + attendanceTable,
@@ -586,7 +761,7 @@ function formatSummary(summary: SummaryResult): string {
 }
 
 /**
- * 处理打卡记录数据计算加班
+ * 处理打卡记录数据计算加班（支持智能节假日判断和弹性上下班）
  * 从原始打卡记录中计算加班时间和薪资
  * 
  * @param punchRecords 打卡记录数组
@@ -606,9 +781,8 @@ export async function processPunchRecords(
 
     // 按日期分组打卡记录
     const recordsByDate = groupPunchRecordsByDate(punchRecords);
-    
-    // 转换为标准格式的加班数据
-    const customData = convertToOvertimeRecords(recordsByDate, workdayType);
+    // 转换为标准格式的加班数据（现在是异步的）
+    const customData = await convertToOvertimeRecords(recordsByDate, workdayType);
     
     // 使用原有加班计算逻辑处理
     const overtimeData: OvertimeData = {
@@ -622,7 +796,7 @@ export async function processPunchRecords(
     console.error('处理打卡记录出错:', error);
     throw error;
   }
-};
+}
 
 /**
  * 按日期分组打卡记录
@@ -652,16 +826,16 @@ function groupPunchRecordsByDate(punchRecords: PunchRecord[]): Record<string, Pu
 }
 
 /**
- * 将打卡记录转换为加班记录
+ * 将打卡记录转换为加班记录（支持智能节假日判断）
  * 
  * @param recordsByDate 按日期分组的打卡记录
  * @param workdayType 指定工作日类型的映射
  * @returns 标准格式的加班记录
  */
-function convertToOvertimeRecords(
+async function convertToOvertimeRecords(
   recordsByDate: Record<string, PunchRecord[]>,
   workdayType?: Record<string, string>
-): OvertimeRecord[] {
+): Promise<OvertimeRecord[]> {
   const overtimeRecords: OvertimeRecord[] = [];
   
   for (const date in recordsByDate) {
@@ -681,17 +855,14 @@ function convertToOvertimeRecords(
     const firstTime = firstRecord.CARDTIME.split(' ')[1];
     const lastTime = lastRecord.CARDTIME.split(' ')[1];
     
-    // 判断日期类型（默认为工作日，可通过参数指定）
+    // 判断日期类型
     let dayType = '工作日';
     
     if (workdayType && workdayType[date]) {
-      dayType = workdayType[date]; // 使用指定的日期类型
+      dayType = normalizeDayType(workdayType[date]); // 使用指定的日期类型
     } else {
-      // 默认判断逻辑：根据日期判断是否为周末
-      const dayOfWeek = new Date(date).getDay(); // 0是周日，6是周六
-      if (dayOfWeek === 0 || dayOfWeek === 6) {
-        dayType = '周末';
-      }
+      // 使用智能节假日判断
+      dayType = await intelligentDayType(date);
     }
     
     overtimeRecords.push({
