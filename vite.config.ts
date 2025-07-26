@@ -69,6 +69,20 @@ export default defineConfig(({ mode }: { mode: string }) => {
           ws: true
         }
       }
+    },
+    // Vitest 配置
+    test: {
+      globals: true,
+      environment: 'node',
+      include: [
+        'tests/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'
+      ],
+      alias: {
+        '@server': path.resolve(__dirname, './server'),
+        '@tests': path.resolve(__dirname, './tests'),
+        '@': path.resolve(__dirname, './src'),
+        '@components': path.resolve(__dirname, './src/components')
+      }
     }
   }
 })

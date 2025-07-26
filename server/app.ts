@@ -117,9 +117,12 @@ app.use((req, res, next) => {
   if (req.method === 'PUT' && req.path.startsWith('/api/http/put_file/')) {
     return next();
   }
-  // 对其他路径应用 JSON 解析
-  express.json()(req, res, next);
+  // 对其他路径应用 JSON 解析，增加请求体大小限制
+  express.json({ limit: '10mb' })(req, res, next);
 });
+
+// URL编码数据解析中间件
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // 调试中间件
 app.use((req, res, next) => {

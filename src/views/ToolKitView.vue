@@ -419,7 +419,7 @@
     {
       id: 'over-time-calculator',
       name: 'Overtime Calculator',
-      description: 'Calculate overtime pay based on hours worked',
+      description: 'Calculate overtime pay based on hours worked, refer to https://github.com/achunbai/overtime_calculator',
       icon: 'fas fa-clock',
       category: 'others',
       tags: ['Overtime', 'Pay', 'Calculator'],
@@ -972,7 +972,7 @@
   .toolkit-container {
     width: 100%;
     min-height: 0;
-    margin: 0 auto;
+    margin: auto 10px;
   }
 
   /* 分类导航 */
