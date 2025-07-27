@@ -621,8 +621,7 @@ button i {
 
 /* API 侧边栏样式 */
 .api-sidebar {
-    width: 300px;
-    min-width: 300px;
+    width: 20%;
     background: #ffffff;
     border-radius: 18px;
     box-shadow: 0 4px 20px rgba(30, 34, 90, 0.07);

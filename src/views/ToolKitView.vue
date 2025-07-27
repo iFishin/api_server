@@ -1431,9 +1431,8 @@
   :deep(.result-section > *:not(.section-header)),
   :deep(.generation-section > *:not(.section-header)),
   :deep(.batch-section > *:not(.section-header)) {
-    flex: 1;
     overflow-y: auto;
-    padding: 0 10px;
+    padding: 2px 10px;
   }
 
   /* 滚动条样式 */

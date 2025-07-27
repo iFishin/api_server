@@ -21,11 +21,11 @@
           <h4>计算配置</h4>
           <div class="config-row">
             <div class="config-item">
-              <label for="hourlyRate">时薪基数 (元)</label>
+              <label for="hourlyRate">工作日时薪基数 (元)</label>
               <input type="number" id="hourlyRate" v-model="hourlyRate" min="1" step="1" class="config-input">
             </div>
             <div class="config-item">
-              <label for="overtimeStart">加班开始时间</label>
+              <label for="overtimeStart">工作日加班开始时间</label>
               <select id="overtimeStart" v-model="overtimeStartTime" class="config-select">
                 <option value="18:30">18:30</option>
                 <option value="19:00">19:00</option>
@@ -840,8 +840,6 @@ textarea {
 .config-select {
   cursor: pointer;
 }
-
-
 
 .status-indicator {
   display: flex;
