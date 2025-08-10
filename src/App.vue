@@ -1,6 +1,6 @@
 <template>
   <div id="app">
-    <header>
+    <header v-if="showNavbar">
       <nav>
         <HeaderNavBar />
       </nav>
@@ -20,9 +20,11 @@
 import HeaderNavBar from './components/HeaderNavBar.vue';
 import SideNavBar from './components/SideNavBar.vue';
 import { useRoute } from 'vue-router';
+import { useStore } from 'vuex';
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue';
 
 const route = useRoute();
+const store = useStore();
 
 // 路由配置 - 定义哪些页面需要显示侧边栏和API文档
 const routeConfig = {
@@ -33,6 +35,9 @@ const showAside = computed(() => {
   const currentRoute = route.path.replace(/^\//, '').toLowerCase();
   return routeConfig.sidebar.includes(currentRoute);
 });
+
+// 从 store 获取导航栏显示状态
+const showNavbar = computed(() => store.getters.showNavbar);
 
 </script>
 

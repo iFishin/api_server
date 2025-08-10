@@ -1231,6 +1231,76 @@ export const {
   postForm
 } = httpTestController;
 
+// JSON文件管理控制器函数
+export const listJsonFiles = (req: Request, res: Response) => {
+  try {
+    const { directory = '', extension = '' } = req.query;
+    const targetDir = path.join(process.cwd(), directory as string);
+    
+    if (!fs.existsSync(targetDir)) {
+      return res.json({ success: false, error: '目录不存在' });
+    }
+    
+    const files = fs.readdirSync(targetDir)
+      .filter(file => {
+        const filePath = path.join(targetDir, file);
+        const isFile = fs.statSync(filePath).isFile();
+        const hasExtension = extension ? file.endsWith(extension as string) : true;
+        return isFile && hasExtension;
+      })
+      .sort();
+    
+    res.json({ success: true, files });
+  } catch (error) {
+    res.json({ success: false, error: (error as Error).message });
+  }
+};
+
+export const readJsonFile = (req: Request, res: Response) => {
+  try {
+    const { path: filePath } = req.query;
+    
+    if (!filePath) {
+      return res.json({ success: false, error: '缺少文件路径参数' });
+    }
+    
+    const fullPath = path.join(process.cwd(), filePath as string);
+    
+    if (!fs.existsSync(fullPath)) {
+      return res.json({ success: false, error: '文件不存在' });
+    }
+    
+    const content = fs.readFileSync(fullPath, 'utf-8');
+    res.json({ success: true, content });
+  } catch (error) {
+    res.json({ success: false, error: (error as Error).message });
+  }
+};
+
+export const saveJsonFile = (req: Request, res: Response) => {
+  try {
+    const { filename, content, directory = '' } = req.body;
+    
+    if (!filename || content === undefined) {
+      return res.json({ success: false, error: '缺少必要参数' });
+    }
+    
+    const targetDir = path.join(process.cwd(), directory);
+    
+    // 确保目录存在
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+    
+    const filePath = path.join(targetDir, filename);
+    fs.writeFileSync(filePath, content, 'utf-8');
+    
+    res.json({ success: true, message: '文件保存成功', path: filePath });
+  } catch (error) {
+    res.json({ success: false, error: (error as Error).message });
+  }
+};
+
 // 导出所有控制器，以便在单元测试中使用
 export const controllers = {
   fileController,

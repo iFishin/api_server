@@ -66,6 +66,7 @@
     "ts-node": "^10.9.2",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0",
+    "vuedraggable": "^4.1.0",
     "webdav": "^5.8.0",
     "webdav-server": "^2.6.2"
   },
@@ -75,7 +76,7 @@
     "@types/highlight.js": "^10.1.0",
     "@types/marked": "^6.0.0",
     "@types/morgan": "^1.9.9",
-    "@types/node": "^22.15.30",
+    "@types/node": "^22.17.1",
     "@vitejs/plugin-vue": "^5.2.1",
     "@vitest/coverage-v8": "^3.2.4",
     "@vitest/ui": "^3.2.4",

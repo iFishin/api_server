@@ -32,6 +32,23 @@
                 <option value="19:30">19:30</option>
               </select>
             </div>
+            <div class="config-item">
+              <label for="region">工作地区</label>
+              <select id="region" v-model="region" class="config-select">
+                <option value="">默认（9.0小时）</option>
+                <option value="上海">上海（8.5小时）</option>
+                <option value="合肥">合肥（8.5小时）</option>
+                <option value="武汉">武汉（8.5小时）</option>
+                <option value="办事处">办事处（8.5小时）</option>
+                <option value="桂林">桂林（9.0小时）</option>
+                <option value="佛山">佛山（9.0小时）</option>
+                <option value="深圳">深圳（9.0小时）</option>
+              </select>
+            </div>
+          </div>
+          <div class="config-note">
+            <i class="fas fa-info-circle"></i>
+            <span>弹性上班：8:30-9:00正常，9:00-9:30弹性，9:30后迟到。迟到扣除：9:31-10:00扣1小时+迟到分钟，10:01-10:30扣2小时+迟到分钟，10:31后视为旷工。</span>
           </div>
         </div>
         <div class="json-input-area">
@@ -236,13 +253,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted, computed, watch } from 'vue';
 import api from '@/utils/api';
 
 // 表单数据
 const jsonInput = ref(getDefaultJsonData());
 const hourlyRate = ref(20); // 默认时薪20元
 const overtimeStartTime = ref('19:00'); // 默认19:00开始计算加班
+const region = ref(''); // 工作地区
 
 // 结果数据
 const results = ref<any>(null);
@@ -252,121 +270,63 @@ const validationError = ref('');
 
 // 获取示例JSON数据
 function getDefaultJsonData(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  return `
-  [
-    {
-      "K_EXTRAS": "EXAMPLE_EXTRAS_1",
-      "EMPID": "10001",
-      "K_PKEYS": "EXAMPLE_PKEYS_1",
-      "ID": "10000001",
-      "CARDTIME": "2025-02-17 09:00:00",
-      "SHIFTTERM": "2025-02-17",
-      "K_LOCKED": ""
-    },
-    {
-      "K_EXTRAS": "EXAMPLE_EXTRAS_2",
-      "EMPID": "10001",
-      "K_PKEYS": "EXAMPLE_PKEYS_2",
-      "ID": "10000002",
-      "CARDTIME": "2025-02-17 18:00:00",
-      "SHIFTTERM": "2025-02-17",
-      "K_LOCKED": ""
-    },
-    {
-      "K_EXTRAS": "EXAMPLE_EXTRAS_3",
-      "EMPID": "10001",
-      "K_PKEYS": "EXAMPLE_PKEYS_3",
-      "ID": "10000003",
-      "CARDTIME": "2025-02-18 09:00:00",
-      "SHIFTTERM": "2025-02-18",
-      "K_LOCKED": ""
-    },
-    {
-      "K_EXTRAS": "EXAMPLE_EXTRAS_4",
-      "EMPID": "10001",
-      "K_PKEYS": "EXAMPLE_PKEYS_4",
-      "ID": "10000004",
-      "CARDTIME": "2025-02-18 20:00:00",
-      "SHIFTTERM": "2025-02-18",
-      "K_LOCKED": ""
-    },
-    {
-      "K_EXTRAS": "EXAMPLE_EXTRAS_5",
-      "EMPID": "10001",
-      "K_PKEYS": "EXAMPLE_PKEYS_5",
-      "ID": "10000005",
-      "CARDTIME": "2025-02-19 09:40:00",
-      "SHIFTTERM": "2025-02-19",
-      "K_LOCKED": ""
-    },
-    {
-      "K_EXTRAS": "EXAMPLE_EXTRAS_6",
-      "EMPID": "10001",
-      "K_PKEYS": "EXAMPLE_PKEYS_6",
-      "ID": "10000006",
-      "CARDTIME": "2025-02-19 20:00:00",
-      "SHIFTTERM": "2025-02-19",
-      "K_LOCKED": ""
-    },
-    {
-      "K_EXTRAS": "EXAMPLE_EXTRAS_7",
-      "EMPID": "10001",
-      "K_PKEYS": "EXAMPLE_PKEYS_7",
-      "ID": "10000007",
-      "CARDTIME": "2025-02-20 10:15:00",
-      "SHIFTTERM": "2025-02-20",
-      "K_LOCKED": ""
-    },
-    {
-      "K_EXTRAS": "EXAMPLE_EXTRAS_8",
-      "EMPID": "10001",
-      "K_PKEYS": "EXAMPLE_PKEYS_8",
-      "ID": "10000008",
-      "CARDTIME": "2025-02-20 21:00:00",
-      "SHIFTTERM": "2025-02-20",
-      "K_LOCKED": ""
-    },
-    {
-      "K_EXTRAS": "EXAMPLE_EXTRAS_9",
-      "EMPID": "10001",
-      "K_PKEYS": "EXAMPLE_PKEYS_9",
-      "ID": "10000009",
-      "CARDTIME": "2025-02-21 11:00:00",
-      "SHIFTTERM": "2025-02-21",
-      "K_LOCKED": ""
-    },
-    {
-      "K_EXTRAS": "EXAMPLE_EXTRAS_10",
-      "EMPID": "10001",
-      "K_PKEYS": "EXAMPLE_PKEYS_10",
-      "ID": "10000010",
-      "CARDTIME": "2025-02-21 19:30:00",
-      "SHIFTTERM": "2025-02-21",
-      "K_LOCKED": ""
-    },
-    {
-      "K_EXTRAS": "EXAMPLE_EXTRAS_11",
-      "EMPID": "10001",
-      "K_PKEYS": "EXAMPLE_PKEYS_11",
-      "ID": "10000011",
-      "CARDTIME": "2025-02-22 09:00:00",
-      "SHIFTTERM": "2025-02-22",
-      "K_LOCKED": ""
-    },
-    {
-      "K_EXTRAS": "EXAMPLE_EXTRAS_12",
-      "EMPID": "10001",
-      "K_PKEYS": "EXAMPLE_PKEYS_12",
-      "ID": "10000012",
-      "CARDTIME": "2025-02-22 21:00:00",
-      "SHIFTTERM": "2025-02-22",
-      "K_LOCKED": ""
+  // 生成2025年3月1日至3月31日每天两条打卡（09:00和18:00）
+  const year = 2025;
+  const month = 3;
+  const days = 31;
+  const empId = "10001";
+  const arr = [];
+  let id = 10000001;
+  for (let d = 1; d <= days; d++) {
+    const dayStr = String(d).padStart(2, '0');
+    const date = `${year}-03-${dayStr}`;
+    
+    // 创建不同的打卡时间场景，包含迟到测试用例
+    let startTime = '09:00:00'; // 默认正常上班
+    let endTime = '18:00:00';   // 默认正常下班
+    
+    if (d === 3) {
+      // 第一天：10:00上班，测试迟到扣除（9:31-10:00段，扣1小时+30分钟，1.5小时）
+      startTime = '10:00:00';
+      endTime = '19:00:00';
+    } else if (d === 4) {
+      // 第二天：10:15上班，测试迟到扣除（10:01-10:30段，扣2小时+45分钟，2.75小时）
+      startTime = '10:15:00';
+      endTime = '19:30:00';
+    } else if (d === 5) {
+      // 第三天：10:45上班，测试旷工处理（10:31后，扣全天7.5小时）
+      startTime = '10:45:00';
+      endTime = '19:00:00';
+    } else if (d === 6) {
+      // 第四天：9:15上班，测试弹性时间（9:00-9:30，不扣除）
+      startTime = '09:15:00';
+      endTime = '19:00:00';
+    } else if (d === 7) {
+      // 第五天：8:45上班，测试正常时间
+      startTime = '08:45:00';
+      endTime = '20:00:00';
     }
-  ]
-  `
+    
+    arr.push({
+      K_EXTRAS: `EXAMPLE_EXTRAS_${id - 10000000}`,
+      EMPID: empId,
+      K_PKEYS: `EXAMPLE_PKEYS_${id - 10000000}`,
+      ID: String(id++),
+      CARDTIME: `${date} ${startTime}`,
+      SHIFTTERM: date,
+      K_LOCKED: ""
+    });
+    arr.push({
+      K_EXTRAS: `EXAMPLE_EXTRAS_${id - 10000000}`,
+      EMPID: empId,
+      K_PKEYS: `EXAMPLE_PKEYS_${id - 10000000}`,
+      ID: String(id++),
+      CARDTIME: `${date} ${endTime}`,
+      SHIFTTERM: date,
+      K_LOCKED: ""
+    });
+  }
+  return JSON.stringify(arr, null, 2);
 }
 
 // 验证JSON输入
@@ -428,6 +388,11 @@ async function calculateOvertime(): Promise<void> {
       hourlyRate: hourlyRate.value.toString(),
       overtimeStartTime: overtimeStartTime.value
     });
+    
+    // 如果选择了地区，添加到查询参数
+    if (region.value) {
+      queryParams.append('region', region.value);
+    }
     
     // 发送请求到API
     const response = await api.post(`/api/http/overtime/calculate?${queryParams}`, requestData);
@@ -570,6 +535,20 @@ function formatResultForCopy(data: any): string {
 // 初始化
 onMounted(() => {
   // 可以在这里添加初始化逻辑，例如加载保存的设置等
+});
+
+// 监听地区变化，自动调整加班开始时间
+watch(region, (newRegion) => {
+  // 8.5小时工作制的地区：上海、合肥、武汉、办事处
+  const shortWorkdayRegions = ['上海', '合肥', '武汉', '办事处'];
+  
+  if (shortWorkdayRegions.includes(newRegion)) {
+    // 8.5小时工作制，加班开始时间为18:30
+    overtimeStartTime.value = '18:30';
+  } else {
+    // 9.0小时工作制（默认、桂林、佛山、深圳），加班开始时间为19:00
+    overtimeStartTime.value = '19:00';
+  }
 });
 </script>
 
@@ -839,6 +818,24 @@ textarea {
 
 .config-select {
   cursor: pointer;
+}
+
+.config-note {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: var(--vscode-editor-inactiveSelectionBackground, rgba(127, 127, 127, 0.1));
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: var(--vscode-descriptionForeground, #cccccc);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.config-note i {
+  color: var(--vscode-notificationsInfoIcon-foreground, #3794ff);
+  margin-top: 0.1rem;
+  flex-shrink: 0;
 }
 
 .status-indicator {
