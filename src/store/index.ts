@@ -36,6 +36,7 @@ interface State {
     tcpUdpCategories: any[];
     userCategories: any[];
     webdavCategories: any[];
+    showNavbar: boolean;
 }
 
 // export const apiData = apiConfig['HTTP'];
@@ -50,6 +51,7 @@ export default createStore<State>({
         tcpUdpCategories: [],
         userCategories: [],
         webdavCategories: [],
+        showNavbar: true,
     },
     mutations: {
         setCurrentPageTitle(state: State, title: string) {
@@ -75,6 +77,9 @@ export default createStore<State>({
         },
         setWebdavCategories(state: State, webdavCategories: any[]) {
             state.webdavCategories = webdavCategories;
+        },
+        setNavbarVisibility(state: State, visible: boolean) {
+            state.showNavbar = visible;
         }
     },
     actions: {
@@ -95,9 +100,13 @@ export default createStore<State>({
             if (mutation) {
                 commit(mutation, categories);
             }
+        },
+        setNavbarVisibility({ commit }: { commit: Function }, visible: boolean) {
+            commit('setNavbarVisibility', visible);
         }
     },
     getters: {
         currentPageTitle: (state: State) => state.currentPageTitle,
+        showNavbar: (state: State) => state.showNavbar,
     }
 });

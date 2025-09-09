@@ -70,6 +70,28 @@ export class FileService {
       return { success: false, error: (err as Error).message };
     }
   }
+
+  /**
+   * PUT 方式创建文件
+   */
+  async putFile(filename: string, content: string) {
+    const filePath = path.join(this.tempDir, filename);
+    try {
+      await writeFile(filePath, content, 'utf8');
+      return { 
+        success: true,
+        message: 'File created successfully',
+        filename: filename,
+        filePath: filePath
+      };
+    } catch (err) {
+      return { 
+        success: false, 
+        message: `Failed to create file: ${(err as Error).message}`,
+        error: (err as Error).message 
+      };
+    }
+  }
 }
 
 /**

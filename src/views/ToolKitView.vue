@@ -235,7 +235,7 @@
   </template>
   
   <script setup lang="ts">
-  import { ref, computed, onMounted, watch } from 'vue';
+  import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
   import { useStore } from 'vuex';
   import { useRoute, useRouter } from 'vue-router';
   
@@ -252,6 +252,7 @@
   import StringGenerator from '../components/tools/StringGenerator.vue';
   import JiraExtractor from '../components/tools/JiraExtractor.vue';
   import OvertimeCalculator from '../components/tools/OvertimeCalculator.vue';
+  import JsonEditor from '../components/tools/JsonEditor.vue';
   
   const store = useStore();
   const route = useRoute();
@@ -399,6 +400,15 @@
     
     // Development
     {
+      id: 'json-editor',
+      name: 'JSON Editor',
+      description: 'Visual JSON editor with drag-and-drop organization for command dictionaries',
+      icon: 'fas fa-edit',
+      category: 'dev',
+      tags: ['JSON', 'Editor', 'Visual'],
+      component: JsonEditor
+    },
+    {
       id: 'regex-tester',
       name: 'Regex Tester',
       description: 'Test and debug regular expressions',
@@ -419,7 +429,7 @@
     {
       id: 'over-time-calculator',
       name: 'Overtime Calculator',
-      description: 'Calculate overtime pay based on hours worked',
+      description: 'Calculate overtime pay based on hours worked, refer to https://github.com/achunbai/overtime_calculator',
       icon: 'fas fa-clock',
       category: 'others',
       tags: ['Overtime', 'Pay', 'Calculator'],
@@ -454,6 +464,8 @@
   // 方法
   const selectTool = (tool: any) => {
     activeTool.value = tool.id;
+    // 隐藏导航栏
+    store.dispatch('setNavbarVisibility', false);
   };
 
   const selectCategory = (categoryId: string) => {
@@ -465,12 +477,16 @@
 
   const closeTool = () => {
     activeTool.value = null;
+    // 显示导航栏
+    store.dispatch('setNavbarVisibility', true);
   };
 
   const backToHome = () => {
     activeCategory.value = '';
     activeTool.value = null;
     showHeader.value = true;
+    // 显示导航栏
+    store.dispatch('setNavbarVisibility', true);
     // 清除 URL 参数
     router.push({ query: {} });
   };
@@ -488,12 +504,26 @@
       categories: toolCategories.value
     });
     
+    // 根据当前状态设置导航栏显示
+    if (activeTool.value) {
+      // 如果有激活的工具，隐藏导航栏
+      store.dispatch('setNavbarVisibility', false);
+    } else {
+      // 否则显示导航栏
+      store.dispatch('setNavbarVisibility', true);
+    }
+    
     // 根据URL查询参数设置初始分类（如果有的话）
     const categoryFromQuery = route.query.category as string;
     if (categoryFromQuery && toolCategories.value.some(cat => cat.id === categoryFromQuery)) {
       activeCategory.value = categoryFromQuery;
       showHeader.value = false;
     }
+  });
+
+  // 组件卸载时恢复导航栏显示
+  onUnmounted(() => {
+    store.dispatch('setNavbarVisibility', true);
   });
 
   // 监听路由查询参数变化
@@ -504,6 +534,17 @@
     } else if (!newCategory) {
       // 如果查询参数被清除，回到首页
       backToHome();
+    }
+  });
+
+  // 监听激活工具的变化，自动控制导航栏显示
+  watch(activeTool, (newTool) => {
+    if (newTool) {
+      // 有激活工具时隐藏导航栏
+      store.dispatch('setNavbarVisibility', false);
+    } else {
+      // 没有激活工具时显示导航栏
+      store.dispatch('setNavbarVisibility', true);
     }
   });
   </script>
@@ -972,7 +1013,7 @@
   .toolkit-container {
     width: 100%;
     min-height: 0;
-    margin: 0 auto;
+    margin: auto 10px;
   }
 
   /* 分类导航 */
@@ -1164,7 +1205,6 @@
     justify-content: space-between;
     align-items: center;
     padding: 1rem 0.5rem;
-    padding-top: 5rem;
     min-height: 120px;
     border-bottom: 1px solid #e2e8f0;
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
@@ -1431,9 +1471,8 @@
   :deep(.result-section > *:not(.section-header)),
   :deep(.generation-section > *:not(.section-header)),
   :deep(.batch-section > *:not(.section-header)) {
-    flex: 1;
     overflow-y: auto;
-    padding: 0 10px;
+    padding: 2px 10px;
   }
 
   /* 滚动条样式 */

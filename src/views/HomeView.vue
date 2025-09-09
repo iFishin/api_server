@@ -80,6 +80,7 @@
           <a href="#" class="footer-link">开始使用</a>
           <a href="#" class="footer-link">文档</a>
           <a href="#" class="footer-link">支持</a>
+          <a href="https://github.com/iFishin/api_server" class="footer-link">Github Repo</a>
         </div>
       </div>
     </div>

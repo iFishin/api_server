@@ -189,6 +189,94 @@ export class FileController {
         }
       }
     });
+
+    // PUT 创建文件 API 文档
+    registerApiDoc({
+      operationId: 'putFile',
+      tags: ['文件管理'],
+      summary: 'PUT 方式创建文件',
+      description: '使用 PUT 请求创建文件，将请求体数据写入到 .txt 文件',
+      method: 'PUT',
+      path: '/api/http/put_file/{filename}',
+      parameters: [
+        {
+          name: 'filename',
+          in: 'path',
+          required: true,
+          description: '文件名（会自动添加 .txt 扩展名）',
+          schema: {
+            type: 'string'
+          }
+        }
+      ],
+      requestBody: {
+        required: true,
+        description: '要写入文件的原始文本数据',
+        content: {
+          'text/plain': {
+            schema: {
+              type: 'string',
+              example: '这是要写入文件的原始文本内容\n可以是多行文本\n支持换行符等特殊字符'
+            }
+          }
+        }
+      },
+      responses: {
+        '200': {
+          description: '文件创建成功',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean' },
+                  message: { type: 'string' },
+                  filename: { type: 'string' },
+                  data: { 
+                    type: 'string',
+                    description: '写入文件的实际内容'
+                  },
+                  filePath: { type: 'string' },
+                  contentLength: { 
+                    type: 'integer',
+                    description: '内容长度（字符数）'
+                  }
+                }
+              }
+            }
+          }
+        },
+        '400': {
+          description: '请求体为空或无效',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean' },
+                  message: { type: 'string' }
+                }
+              }
+            }
+          }
+        },
+        '500': {
+          description: '服务器错误',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean' },
+                  message: { type: 'string' },
+                  error: { type: 'string' }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
   }
 
   /**
@@ -255,6 +343,70 @@ export class FileController {
       });
     } catch (err) {
       res.status(404).json({ message: 'File not found' });
+    }
+  }
+
+  /**
+   * PUT 方式创建文件
+   */
+  async put_file(req: Request, res: Response): Promise<void> {
+    try {
+      const { filename } = req.params;
+      
+      // 优先使用原始数据，如果没有则使用解析后的 body
+      const rawBody = (req as any).rawBody;
+      const body = rawBody || req.body;
+      
+      // 检查是否有数据
+      if (body === undefined || body === null || body === '') {
+        res.status(400).json({ 
+          success: false,
+          message: 'Request body is empty' 
+        });
+        return;
+      }
+
+      // 处理不同类型的数据
+      let content: string;
+      
+      if (typeof body === 'string') {
+        content = body;
+      } else if (Buffer.isBuffer(body)) {
+        content = body.toString('utf8');
+      } else {
+        // 如果是对象，转换为 JSON 字符串
+        content = JSON.stringify(body, null, 2);
+      }
+
+      // 确保文件扩展名
+      const finalFilename = filename.endsWith('.txt') ? filename : `${filename}.txt`;
+      
+      // 写入文件到 temps 目录
+      const result = await fileService.putFile(finalFilename, content);
+      
+      if (result.success) {
+        res.status(200).json({
+          success: true,
+          message: 'File created successfully',
+          filename: finalFilename,
+          data: content,
+          filePath: result.filePath,
+          contentLength: content.length,
+          dataSource: rawBody ? 'rawBody' : 'parsedBody'
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: result.message || 'Failed to create file'
+        });
+      }
+    } catch (error) {
+      console.error('Error in put_file:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }
 }
@@ -1042,7 +1194,8 @@ export const {
   getFiles,
   deleteFile,
   uploadFile,
-  downloadFile
+  downloadFile,
+  put_file
 } = fileController;
 
 export const {
@@ -1077,6 +1230,76 @@ export const {
   postJson,
   postForm
 } = httpTestController;
+
+// JSON文件管理控制器函数
+export const listJsonFiles = (req: Request, res: Response) => {
+  try {
+    const { directory = '', extension = '' } = req.query;
+    const targetDir = path.join(process.cwd(), directory as string);
+    
+    if (!fs.existsSync(targetDir)) {
+      return res.json({ success: false, error: '目录不存在' });
+    }
+    
+    const files = fs.readdirSync(targetDir)
+      .filter(file => {
+        const filePath = path.join(targetDir, file);
+        const isFile = fs.statSync(filePath).isFile();
+        const hasExtension = extension ? file.endsWith(extension as string) : true;
+        return isFile && hasExtension;
+      })
+      .sort();
+    
+    res.json({ success: true, files });
+  } catch (error) {
+    res.json({ success: false, error: (error as Error).message });
+  }
+};
+
+export const readJsonFile = (req: Request, res: Response) => {
+  try {
+    const { path: filePath } = req.query;
+    
+    if (!filePath) {
+      return res.json({ success: false, error: '缺少文件路径参数' });
+    }
+    
+    const fullPath = path.join(process.cwd(), filePath as string);
+    
+    if (!fs.existsSync(fullPath)) {
+      return res.json({ success: false, error: '文件不存在' });
+    }
+    
+    const content = fs.readFileSync(fullPath, 'utf-8');
+    res.json({ success: true, content });
+  } catch (error) {
+    res.json({ success: false, error: (error as Error).message });
+  }
+};
+
+export const saveJsonFile = (req: Request, res: Response) => {
+  try {
+    const { filename, content, directory = '' } = req.body;
+    
+    if (!filename || content === undefined) {
+      return res.json({ success: false, error: '缺少必要参数' });
+    }
+    
+    const targetDir = path.join(process.cwd(), directory);
+    
+    // 确保目录存在
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+    
+    const filePath = path.join(targetDir, filename);
+    fs.writeFileSync(filePath, content, 'utf-8');
+    
+    res.json({ success: true, message: '文件保存成功', path: filePath });
+  } catch (error) {
+    res.json({ success: false, error: (error as Error).message });
+  }
+};
 
 // 导出所有控制器，以便在单元测试中使用
 export const controllers = {
