@@ -6,6 +6,7 @@ import TcpUdpApiView from '../views/TcpUdpApiView.vue'
 import MqttApiView from '../views/MqttApiView.vue'
 import ToolKitView from '../views/ToolKitView.vue'
 import WebDAVView from '../views/WebDAVView.vue'
+import InfiniteNavView from '../views/InfiniteNavView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -16,7 +17,15 @@ const router = createRouter({
       component: HomeView,
     },
     {
-      path: '/users',
+      path: '/infinite-nav',
+      name: 'infinite-nav',
+      component: InfiniteNavView,
+      meta: {
+        title: '无界导航'
+      }
+    },
+    {
+      path: '/users-api',
       name: 'users',
       component: UsersApiView,
       meta: {
@@ -24,7 +33,7 @@ const router = createRouter({
       }
     },
     {
-      path: '/http',
+      path: '/http-api',
       name: 'http',
       component: HttpApiView,
       meta: {
@@ -32,7 +41,7 @@ const router = createRouter({
       }
     },
     {
-      path: '/tcp_udp',
+      path: '/tcp-udp-api',
       name: 'tcp_udp',
       component: TcpUdpApiView,
       meta: {
@@ -40,7 +49,7 @@ const router = createRouter({
       }
     },
     {
-      path: '/mqtt',
+      path: '/mqtt-api',
       name: 'mqtt',
       component: MqttApiView,
       meta: {
@@ -56,7 +65,7 @@ const router = createRouter({
       }
     },
     {
-      path: '/webdav-ui',
+      path: '/webdav',
       name: 'webdav',
       component: WebDAVView,
       meta: {

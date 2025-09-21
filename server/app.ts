@@ -283,14 +283,25 @@ if (isProduction) {
     res.sendFile(path.join(__dirname, '..', 'index.html'));
   });
 } else {
-  // 开发环境的静态文件服务
-  app.use(express.static(publicPath));
-  app.use("/temps", express.static(tempsPath));
-  
-  // 开发环境下的路由处理
+  // 开发环境下的API根路径 - 返回API信息而不是HTML页面
   app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, "public", "index.html"));
+    res.json({
+      message: 'API Server 开发环境',
+      version: '1.0.0',
+      environment: 'development',
+      endpoints: {
+        api: '/api',
+        temps: '/temps',
+        webdav: '/webdav'
+      },
+      frontend: 'http://localhost:5173',
+      timestamp: new Date().toISOString()
+    });
   });
+  
+  // 开发环境的静态文件服务（放在API路由之后）
+  app.use('/static', express.static(publicPath));
+  app.use("/temps", express.static(tempsPath));
 }
 
 app.get("/script.js", (req, res) => {

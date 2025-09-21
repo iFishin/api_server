@@ -28,7 +28,7 @@
           </router-link>
       </li>
       <li class="nav-item">
-        <RouterLink to="/webdav-ui" class="nav-link">
+        <RouterLink to="/webdav" class="nav-link">
           <i class="fas fa-cloud"></i>
           <span>WebDAV File Server</span>
         </RouterLink>
@@ -54,12 +54,15 @@ export default defineComponent({
     const menuItems = ref<string[]>([]);
     const menuOpen = ref(false);
 
-    menuItems.value = ['USERS', 'HTTP', 'TCP_UDP', 'MQTT'];
+    menuItems.value = ['USERS-API', 'HTTP-API', 'TCP-UDP-API', 'MQTT-API'];
+    console.log('HeaderNavBar menuItems initialized:', menuItems.value);
 
     onMounted(() => {
       const apiConfig = store.state.apiConfig;
+      console.log('HeaderNavBar apiConfig from store:', apiConfig);
       if (apiConfig) {
         menuItems.value = Object.keys(apiConfig);
+        console.log('HeaderNavBar menuItems updated from store:', menuItems.value);
       }
     });
 

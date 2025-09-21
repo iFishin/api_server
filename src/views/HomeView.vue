@@ -36,7 +36,7 @@
         </span>
       </h1>
       <p class="subtitle">
-        <span class="subtitle-badge">All-in-One Development Platform</span>
+        <span class="subtitle-badge">All-in-One Development&Debug Kits Platform</span>
       </p>
       
       <!-- 循环提示词展示 -->
@@ -69,6 +69,22 @@
             <p>{{ step.desc }}</p>
           </div>
         </div>
+      </div>
+      
+      <!-- 无界导航入口 -->
+      <div class="infinite-nav-entry">
+        <router-link to="/infinite-nav" class="infinite-nav-button">
+          <div class="nav-button-icon">
+            <i class="fas fa-infinity"></i>
+          </div>
+          <div class="nav-button-content">
+            <h3>🌌 体验无界导航</h3>
+            <p>探索无限循环的交互式导航界面</p>
+          </div>
+          <div class="nav-button-arrow">
+            <i class="fas fa-arrow-right"></i>
+          </div>
+        </router-link>
       </div>
     </div>
 
@@ -239,7 +255,6 @@ onUnmounted(() => {
   box-shadow: none;
   border: none;
   font-family: 'Inter', 'PingFang SC', 'Hiragino Sans', Arial, sans-serif;
-  min-height: 100vh;
   position: relative;
   box-sizing: border-box;
 }
@@ -722,6 +737,149 @@ onUnmounted(() => {
   text-align: center;
 }
 
+/* 无界导航入口 */
+.infinite-nav-entry {
+  margin: 3rem auto 0;
+  max-width: 600px;
+}
+
+.infinite-nav-button {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(135deg, 
+    rgba(147, 51, 234, 0.95) 0%, 
+    rgba(59, 130, 246, 0.95) 50%, 
+    rgba(16, 185, 129, 0.95) 100%);
+  color: white;
+  text-decoration: none;
+  border-radius: 20px;
+  padding: 1.5rem 2rem;
+  gap: 1.5rem;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 
+    0 10px 30px rgba(147, 51, 234, 0.3),
+    0 5px 15px rgba(59, 130, 246, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.infinite-nav-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.2) 30%, 
+    rgba(255, 255, 255, 0.4) 50%, 
+    rgba(255, 255, 255, 0.2) 70%, 
+    transparent);
+  transition: left 0.6s ease;
+}
+
+.infinite-nav-button:hover::before {
+  left: 100%;
+}
+
+.infinite-nav-button:hover {
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: 
+    0 20px 50px rgba(147, 51, 234, 0.4),
+    0 10px 25px rgba(59, 130, 246, 0.3),
+    0 0 30px rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.infinite-nav-button:active {
+  transform: translateY(-2px) scale(0.98);
+}
+
+.nav-button-icon {
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 
+    0 4px 15px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  position: relative;
+  z-index: 2;
+  transition: all 0.3s ease;
+}
+
+.infinite-nav-button:hover .nav-button-icon {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(360deg);
+}
+
+.nav-button-icon i {
+  font-size: 1.8rem;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  animation: infinityPulse 2s ease-in-out infinite;
+}
+
+@keyframes infinityPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.nav-button-content {
+  flex: 1;
+  text-align: left;
+  position: relative;
+  z-index: 2;
+}
+
+.nav-button-content h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(45deg, #ffffff, #f0f9ff);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.nav-button-content p {
+  margin: 0;
+  font-size: 1rem;
+  opacity: 0.9;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.nav-button-arrow {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+  transition: all 0.3s ease;
+}
+
+.infinite-nav-button:hover .nav-button-arrow {
+  transform: translateX(5px);
+}
+
+.nav-button-arrow i {
+  font-size: 1.2rem;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
 .footer-content p {
   color: #6b7280;
   font-size: 1.1rem;
@@ -814,6 +972,25 @@ onUnmounted(() => {
     grid-template-columns: 1fr;
     gap: 1.5rem;
     width: 100%;
+  }
+
+  .infinite-nav-button {
+    flex-direction: column;
+    text-align: center;
+    padding: 1.5rem;
+    gap: 1rem;
+  }
+
+  .nav-button-content {
+    text-align: center;
+  }
+
+  .nav-button-arrow {
+    transform: rotate(90deg);
+  }
+
+  .infinite-nav-button:hover .nav-button-arrow {
+    transform: rotate(90deg) translateX(5px);
   }
 
   .footer {
