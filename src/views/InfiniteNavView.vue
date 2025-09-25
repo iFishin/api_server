@@ -348,7 +348,17 @@ const navItems: NavItem[] = [
         icon: 'fas fa-code-branch',
         image: 'https://stres.quectel.com:8139/cdn/images/icons/GIT.png?t=11',
         route: '#',
-        url: 'https://gitlab.st.quectel.com/',
+        url: 'http://192.168.26.11:8084/',
+        color: '#9b59b6'
+    },
+    {
+        title: 'Gitlab2',
+        description: '公司级GitLab代码仓库',
+        category: 'management',
+        icon: 'fas fa-code-branch',
+        image: 'https://stres.quectel.com:8139/cdn/images/icons/GIT.png?t=11',
+        route: '#',
+        url: 'https://gitlab2.quectel.com/',
         color: '#9b59b6'
     },
     {
@@ -383,7 +393,7 @@ const navItems: NavItem[] = [
     },
     {
         title: 'EIP',
-        description: '企业信息门户',
+        description: '移远综合信息门户网站',
         category: 'management',
         icon: 'fas fa-building',
         image: 'https://eip.quectel.com/uploads/default/original/2X/e/ecca7aaf5e8af610398f92a9507dfc331716502c.png',
@@ -393,7 +403,7 @@ const navItems: NavItem[] = [
     },
     {
         title: 'QMeeting',
-        description: '企业会议管理系统',
+        description: '移远视频会议系统',
         category: 'management',
         icon: 'fas fa-handshake',
         image: 'https://qmeeting.quectel.com/img/logo_icon.64cdc7ac.svg',
@@ -403,7 +413,7 @@ const navItems: NavItem[] = [
     },
     {
         title: 'QHR',
-        description: '企业人力资源系统',
+        description: '移远人力资源系统',
         category: 'management',
         icon: 'fas fa-user',
         image: 'https://hr.quectel.com/skin/images/index/index-logo.png',
@@ -431,13 +441,58 @@ const navItems: NavItem[] = [
     },
     {
         title: 'QLearning',
-        description: '企业学习与培训平台',
+        description: '移远书院',
         category: 'management',
         icon: 'fas fa-graduation-cap',
         route: '#',
         url: 'https://learning.quectel.com/',
         color: '#FF9800'
     },
+    {
+        title: 'QDisk',
+        description: '移远云盘',
+        category: 'management',
+        icon: 'fas fa-cloud',
+        route: '#',
+        url: 'https://qdisk.quectel.com/',
+        color: '#8e44ad'
+    },
+    {
+        title: 'QWorkSpace',
+        description: '移远工位系统',
+        category: 'management',
+        icon: 'fas fa-briefcase',
+        route: '#',
+        url: 'https://qworkspace.quectel.com/',
+        color: '#27ae60'
+    },
+    {
+        title: 'QExpress',
+        description: '移远快递',
+        category: 'management',
+        icon: 'fas fa-shipping-fast',
+        route: '#',
+        url: 'https://qexpress.quectel.com/',
+        color: '#e67e22'
+    },
+    {
+        title: 'QAssociation',
+        description: '移远协会',
+        category: 'management',
+        icon: 'fas fa-users-cog',
+        route: '#',
+        url: 'https://association.quectel.com/',
+        color: '#2980b9'
+    },
+    {
+        title: '更多服务',
+        description: '访问公司内网了解更多',
+        category: 'management',
+        icon: 'fas fa-ellipsis-h',
+        route: '#',
+        url: 'https://eip.quectel.com/c/apps/1',
+        color: '#34495e'
+    }
 ];
 
 // 动态网格配置 - 根据项目数量和屏幕尺寸智能调整
