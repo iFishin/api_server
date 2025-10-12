@@ -13,7 +13,7 @@
             @touchstart="handleTouchStart"
             @touchmove="handleTouchMove"
             @touchend="handleTouchEnd"
-            @wheel="handleWheel"
+            @wheel.prevent="handleWheel"
         >
             <!-- 重复的导航网格 -->
             <div 
@@ -100,7 +100,6 @@
             <div class="status">
                 <span v-if="isDragging && dragButton === 0" class="dragging">🖱️ 左键拖拽</span>
                 <span v-else-if="isDragging && dragButton === 2" class="dragging">🖱️ 右键拖拽</span>
-                <span v-else-if="isInertiaRunning" class="inertia">⚡ 惯性滑动</span>
                 <span v-else class="idle">😌 静止</span>
             </div>
             
@@ -211,7 +210,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, shallowRef, markRaw } from 'vue'
 import { useRouter } from 'vue-router'
 
 interface NavItem {
@@ -250,8 +249,7 @@ let internalY = position.y;
 const isDragging = ref(false);
 const lastPointer = reactive({ x: 0, y: 0 });
 const showGrid = ref(false);
-const dragVelocity = reactive({ x: 0, y: 0 });
-const isInertiaRunning = ref(false);
+// 性能优化：移除 dragVelocity 和 isInertiaRunning，简化拖拽逻辑
 const dragDistance = ref(0); // 追踪拖拽距离
 const dragStartTime = ref(0);
 const dragButton = ref(0); // 追踪哪个鼠标按钮在拖拽 (0=左键, 2=右键)
@@ -272,6 +270,14 @@ const gridModeNames = {
 
 // 导航项目配置
 const navItems: NavItem[] = [
+    {
+        title: 'OpenList',
+        description: '内部网盘',
+        category: 'tools',
+        icon: 'fas fa-cloud',
+        route: '/openlist',
+        color: '#2ecc71'
+    },
     {
         title: 'HTTP API',
         description: 'RESTful API 接口测试',
@@ -625,17 +631,31 @@ const grids = computed<Grid[]>(() => {
 });
 
 // 按需渲染：只渲染当前视口可见或接近视口的网格
-const visibleGrids = ref<Grid[]>([]);
+// 性能优化：使用 shallowRef 避免深度响应式
+const visibleGrids = shallowRef<Grid[]>([]);
+
+// 性能优化：缓存上次计算的中心网格，避免频繁重新计算
+let lastCenterX = Number.MIN_SAFE_INTEGER; // 初始化为极小值，确保第一次一定会计算
+let lastCenterY = Number.MIN_SAFE_INTEGER;
 
 function computeVisibleGrids() {
     const buffer = 1; // 在视口外再渲染1个缓冲网格
     const currentGridSize = gridSize.value;
-    const cols = Math.ceil(viewport.width / currentGridSize.width) + buffer * 2;
-    const rows = Math.ceil(viewport.height / currentGridSize.height) + buffer * 2;
-
+    
     // 计算中心网格索引
     const centerX = Math.floor(-position.x / currentGridSize.width);
     const centerY = Math.floor(-position.y / currentGridSize.height);
+    
+    // 性能优化：只有当中心网格变化时才重新计算
+    if (centerX === lastCenterX && centerY === lastCenterY) {
+        return;
+    }
+    
+    lastCenterX = centerX;
+    lastCenterY = centerY;
+    
+    const cols = Math.ceil(viewport.width / currentGridSize.width) + buffer * 2;
+    const rows = Math.ceil(viewport.height / currentGridSize.height) + buffer * 2;
 
     const result: Grid[] = [];
     const halfCols = Math.floor(cols / 2);
@@ -683,7 +703,7 @@ const canvasStyle = computed(() => {
         cursor: isDragging.value ? (dragButton.value === 2 ? 'move' : 'grabbing') : 'grab',
         backgroundImage,
         backgroundSize,
-        transition: (isDragging.value || isInertiaRunning.value) ? 'none' : 'transform 0.3s ease-out',
+        transition: isDragging.value ? 'none' : 'transform 0.3s ease-out',
         outline: isDragging.value && dragButton.value === 2 ? '2px dashed rgba(52, 152, 219, 0.5)' : 'none'
     };
 });
@@ -737,10 +757,7 @@ function handleMouseDown(event: MouseEvent) {
     // 支持左键(0)和右键(2)拖拽
     if (event.button !== 0 && event.button !== 2) return;
     
-    // 停止任何惯性运动
-    isInertiaRunning.value = false;
-    dragVelocity.x = 0;
-    dragVelocity.y = 0;
+    // 重置拖拽状态
     dragDistance.value = 0;
     dragStartTime.value = Date.now();
     dragButton.value = event.button;
@@ -765,10 +782,6 @@ function handleMouseMove(event: MouseEvent) {
     // 累计拖拽距离
     dragDistance.value += Math.abs(deltaX) + Math.abs(deltaY);
     
-    // 记录拖拽速度用于惯性
-    dragVelocity.x = deltaX * 0.8; // 减少速度避免过快
-    dragVelocity.y = deltaY * 0.8;
-    
     updatePosition(deltaX, deltaY);
     
     lastPointer.x = event.clientX;
@@ -779,12 +792,6 @@ function handleMouseUp(event: MouseEvent) {
     // 只处理正在拖拽的按钮释放
     if (event.button === dragButton.value) {
         isDragging.value = false;
-        
-        // 启动惯性运动
-        if (Math.abs(dragVelocity.x) > 2 || Math.abs(dragVelocity.y) > 2) {
-            startInertia();
-        }
-        
         dragButton.value = -1; // 重置拖拽按钮
     }
 }
@@ -801,44 +808,10 @@ function handleContextMenu(event: MouseEvent) {
     return true;
 }
 
-// 惯性运动
-function startInertia() {
-    if (isInertiaRunning.value) return;
-    
-    isInertiaRunning.value = true;
-    
-    const inertiaStep = () => {
-        if (!isInertiaRunning.value) return;
-        
-        // 应用摩擦力
-        dragVelocity.x *= 0.95;
-        dragVelocity.y *= 0.95;
-        
-        // 如果速度很小，停止惯性
-        if (Math.abs(dragVelocity.x) < 0.1 && Math.abs(dragVelocity.y) < 0.1) {
-            isInertiaRunning.value = false;
-            dragVelocity.x = 0;
-            dragVelocity.y = 0;
-            return;
-        }
-        
-        // 更新位置
-        updatePosition(dragVelocity.x, dragVelocity.y);
-        
-        // 继续下一帧
-        requestAnimationFrame(inertiaStep);
-    };
-    
-    requestAnimationFrame(inertiaStep);
-}
-
 // 触摸事件处理
 function handleTouchStart(event: TouchEvent) {
     if (event.touches.length === 1) {
-        // 停止任何惯性运动
-        isInertiaRunning.value = false;
-        dragVelocity.x = 0;
-        dragVelocity.y = 0;
+        // 重置拖拽状态
         dragDistance.value = 0;
         dragStartTime.value = Date.now();
         
@@ -860,10 +833,6 @@ function handleTouchMove(event: TouchEvent) {
     // 累计拖拽距离
     dragDistance.value += Math.abs(deltaX) + Math.abs(deltaY);
     
-    // 记录拖拽速度用于惯性
-    dragVelocity.x = deltaX * 0.8;
-    dragVelocity.y = deltaY * 0.8;
-    
     updatePosition(deltaX, deltaY);
     
     lastPointer.x = touch.clientX;
@@ -873,11 +842,6 @@ function handleTouchMove(event: TouchEvent) {
 
 function handleTouchEnd() {
     isDragging.value = false;
-    
-    // 启动惯性运动
-    if (Math.abs(dragVelocity.x) > 2 || Math.abs(dragVelocity.y) > 2) {
-        startInertia();
-    }
 }
 
 // 滚轮事件处理
@@ -911,29 +875,39 @@ function updatePosition(deltaX: number, deltaY: number) {
 let rafId: number | null = null;
 let lastApplied = { x: 0, y: 0, scale: 1 };
 let lastGridUpdate = 0;
+let frameCount = 0; // 帧计数器，用于性能监控
 
 function renderFrame() {
     if (!canvasRef.value) return;
+    
     const scale = isZoomed.value ? 1.5 : 1;
+    
     // 只在内部位置或缩放变化时更新 DOM（避免频繁触发 Vue 响应式）
-    if (lastApplied.x !== internalX || lastApplied.y !== internalY || lastApplied.scale !== scale) {
+    const hasPositionChanged = lastApplied.x !== internalX || lastApplied.y !== internalY;
+    const hasScaleChanged = lastApplied.scale !== scale;
+    
+    if (hasPositionChanged || hasScaleChanged) {
         const tx = Math.round(internalX);
         const ty = Math.round(internalY);
+        // 性能优化：使用 transform3d 启用 GPU 加速
         canvasRef.value.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`;
         lastApplied.x = internalX;
         lastApplied.y = internalY;
         lastApplied.scale = scale;
     }
 
-    // 每100ms更新一次 visibleGrids，并在更新前把内部位置同步到响应式 position
+    // 性能优化：在拖拽时立即同步位置，非拖拽时降低更新频率到 100ms
     const now = performance.now();
-    if (now - lastGridUpdate > 100) {
+    const updateInterval = isDragging.value ? 0 : 100;
+    
+    if (hasPositionChanged && now - lastGridUpdate > updateInterval) {
         // 将内部位置同步到响应式位置，以便其他依赖 position 的计算（如 visibleGrids）使用最新值
         position.x = internalX;
         position.y = internalY;
         computeVisibleGrids();
         lastGridUpdate = now;
     }
+    
     rafId = requestAnimationFrame(renderFrame);
 }
 
@@ -988,11 +962,6 @@ function handleNavClick(item: NavItem) {
 
 // 重置到中心位置
 function resetPosition() {
-    // 停止惯性运动
-    isInertiaRunning.value = false;
-    dragVelocity.x = 0;
-    dragVelocity.y = 0;
-    
     const startX = internalX;
     const startY = internalY;
     const duration = 500;
@@ -1096,6 +1065,57 @@ const onImageError = (event: Event) => {
     img.style.display = 'none';
 }
 
+// 性能优化：图片懒加载
+const imageCache = new Set<string>();
+const loadingImages = new Map<string, Promise<void>>();
+
+function lazyLoadImage(src: string): Promise<void> {
+    // 如果已经缓存，直接返回
+    if (imageCache.has(src)) {
+        return Promise.resolve();
+    }
+    
+    // 如果正在加载，返回现有的 Promise
+    if (loadingImages.has(src)) {
+        return loadingImages.get(src)!;
+    }
+    
+    // 创建新的加载 Promise
+    const loadPromise = new Promise<void>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            imageCache.add(src);
+            loadingImages.delete(src);
+            resolve();
+        };
+        img.onerror = () => {
+            loadingImages.delete(src);
+            reject();
+        };
+        img.src = src;
+    });
+    
+    loadingImages.set(src, loadPromise);
+    return loadPromise;
+}
+
+// 性能优化：预加载可见卡片的图片
+function preloadVisibleImages() {
+    groupedNavItems.value.forEach(group => {
+        // 预加载分类图标
+        if (group.config.image) {
+            lazyLoadImage(group.config.image).catch(() => {});
+        }
+        
+        // 预加载卡片图标
+        group.items.forEach(item => {
+            if (item.image) {
+                lazyLoadImage(item.image).catch(() => {});
+            }
+        });
+    });
+}
+
 // 导航到指定卡片位置（保留兼容性）
 function navigateToCard(index: number) {
     // 找到包含该卡片的分组
@@ -1113,11 +1133,6 @@ function navigateToCard(index: number) {
 
 // 平滑动画到指定位置
 function animateToPosition(targetX: number, targetY: number) {
-    // 停止惯性运动
-    isInertiaRunning.value = false;
-    dragVelocity.x = 0;
-    dragVelocity.y = 0;
-    
     const startX = internalX;
     const startY = internalY;
     const duration = 800;
@@ -1146,11 +1161,6 @@ function animateToPosition(targetX: number, targetY: number) {
 
 // 键盘事件处理
 function handleKeyDown(event: KeyboardEvent) {
-    // 停止惯性运动
-    isInertiaRunning.value = false;
-    dragVelocity.x = 0;
-    dragVelocity.y = 0;
-    
     const step = 50;
     
     switch (event.key) {
@@ -1194,10 +1204,24 @@ function updateViewport() {
 onMounted(() => {
     document.addEventListener('keydown', handleKeyDown);
     window.addEventListener('resize', updateViewport);
-    // 开始 RAF 循环来批量更新 canvas 的 transform，减少 Vue 响应式更新压力
+    
+    // 修复：先启动渲染循环，确保 canvas transform 立即生效
     startRenderLoop();
-    // 初始化可见网格
+    
+    // 立即计算可见网格并强制渲染
+    position.x = internalX;
+    position.y = internalY;
     computeVisibleGrids();
+    
+    // 强制触发一次 canvas 更新
+    if (canvasRef.value) {
+        canvasRef.value.style.transform = `translate3d(0px, 0px, 0) scale(1)`;
+    }
+    
+    // 性能优化：异步预加载图片，不阻塞渲染
+    setTimeout(() => {
+        preloadVisibleImages();
+    }, 100);
 });
 
 onUnmounted(() => {
@@ -1232,6 +1256,10 @@ defineOptions({
     /* 移除固定的过渡效果，由JavaScript动态控制 */
     will-change: transform;
     backface-visibility: hidden;
+    /* 性能优化：使用 GPU 合成层 */
+    transform: translate3d(0, 0, 0);
+    /* 性能优化：减少重绘 */
+    contain: layout style paint;
 }
 
 .nav-grid {
@@ -1240,6 +1268,13 @@ defineOptions({
     box-sizing: border-box;
     transform-origin: 0 0;
     z-index: 1;
+    /* 性能优化：使用 content-visibility 自动管理渲染 */
+    content-visibility: auto;
+    /* 性能优化：提供内容大小提示，避免布局抖动 */
+    contain-intrinsic-size: auto 500px auto 500px;
+    /* 性能优化：强制 GPU 加速 */
+    will-change: transform;
+    transform: translate3d(0, 0, 0);
 }
 
 /* 分类组样式 */
@@ -1247,22 +1282,23 @@ defineOptions({
     background: rgba(255, 255, 255, 0.95);
     border-radius: 20px;
     padding: 20px;
-    box-shadow: 
-        0 12px 40px rgba(0, 0, 0, 0.1),
-        0 6px 20px rgba(0, 0, 0, 0.05);
-    backdrop-filter: blur(15px);
+    /* 性能优化：使用更高效的阴影 */
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+    /* 性能优化：减少 backdrop-filter 使用 */
+    /* backdrop-filter: blur(15px); */
     border: 1px solid rgba(255, 255, 255, 0.2);
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    transition: all 0.3s ease;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    /* 性能优化：启用 GPU 加速 */
+    will-change: transform;
+    transform: translateZ(0);
 }
 
 .category-group:hover {
-    transform: translateY(-5px);
-    box-shadow: 
-        0 20px 60px rgba(0, 0, 0, 0.15),
-        0 10px 30px rgba(0, 0, 0, 0.1);
+    transform: translateY(-5px) translateZ(0);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
 }
 
 /* 分类标题样式 */
@@ -1354,36 +1390,37 @@ defineOptions({
     background: rgba(255, 255, 255, 0.9);
     border-radius: 12px;
     padding: 12px;
-    box-shadow: 
-        0 4px 16px rgba(0, 0, 0, 0.08),
-        0 2px 8px rgba(0, 0, 0, 0.04);
+    /* 性能优化：简化阴影 */
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    backdrop-filter: blur(8px);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+    /* 性能优化：减少 backdrop-filter */
+    /* backdrop-filter: blur(8px); */
     border: 1px solid rgba(255, 255, 255, 0.3);
     overflow: hidden;
-    will-change: transform, opacity;
+    /* 性能优化：提前声明 will-change */
+    will-change: transform;
+    /* 性能优化：启用 GPU 加速 */
+    transform: translateZ(0);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     text-align: center;
     min-height: 80px;
+    /* 性能优化：使用 contain 属性隔离布局和绘制 */
+    contain: layout style paint;
 }
 
 .nav-card:hover {
-    transform: translateY(-3px) scale(1.02);
-    box-shadow: 
-        0 8px 24px rgba(0, 0, 0, 0.12),
-        0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-3px) scale(1.02) translateZ(0);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
     background: rgba(255, 255, 255, 0.95);
 }
 
 .nav-card.active {
-    transform: scale(0.96);
-    box-shadow: 
-        0 2px 8px rgba(0, 0, 0, 0.15),
-        inset 0 0 8px rgba(0, 0, 0, 0.1);
+    transform: scale(0.96) translateZ(0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .card-icon {

@@ -33,6 +33,12 @@
           <span>WebDAV File Server</span>
         </RouterLink>
       </li>
+      <li class="nav-item">
+        <RouterLink to="/message-board" class="nav-link">
+          <i class="fas fa-comments"></i>
+          <span>Message Board</span>
+        </RouterLink>
+      </li>
     </ul>
   </nav>
 </template>

@@ -86,6 +86,22 @@
           </div>
         </router-link>
       </div>
+
+      <!-- 留言板入口 -->
+      <div class="infinite-nav-entry">
+        <router-link to="/message-board" class="infinite-nav-button message-board-button">
+          <div class="nav-button-icon">
+            <i class="fas fa-cloud"></i>
+          </div>
+          <div class="nav-button-content">
+            <h3>☁️ 云端留言板</h3>
+            <p>在云朵上留下你的想法和创意</p>
+          </div>
+          <div class="nav-button-arrow">
+            <i class="fas fa-arrow-right"></i>
+          </div>
+        </router-link>
+      </div>
     </div>
 
     <!-- 底部 -->
@@ -878,6 +894,24 @@ onUnmounted(() => {
   font-size: 1.2rem;
   color: white;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* 留言板按钮特殊样式 */
+.message-board-button {
+  background: linear-gradient(135deg, 
+    rgba(52, 152, 219, 0.95) 0%, 
+    rgba(155, 89, 182, 0.95) 50%, 
+    rgba(241, 196, 15, 0.95) 100%);
+  box-shadow: 
+    0 10px 30px rgba(52, 152, 219, 0.3),
+    0 5px 15px rgba(155, 89, 182, 0.2);
+}
+
+.message-board-button:hover {
+  box-shadow: 
+    0 20px 50px rgba(52, 152, 219, 0.4),
+    0 10px 25px rgba(155, 89, 182, 0.3),
+    0 0 30px rgba(255, 255, 255, 0.2);
 }
 
 .footer-content p {

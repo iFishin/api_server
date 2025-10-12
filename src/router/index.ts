@@ -7,6 +7,7 @@ import MqttApiView from '../views/MqttApiView.vue'
 import ToolKitView from '../views/ToolKitView.vue'
 import WebDAVView from '../views/WebDAVView.vue'
 import InfiniteNavView from '../views/InfiniteNavView.vue'
+import MessageBoardView from '../views/MessageBoardView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -70,6 +71,14 @@ const router = createRouter({
       component: WebDAVView,
       meta: {
         title: 'WebDAV 文件服务器'
+      }
+    },
+    {
+      path: '/message-board',
+      name: 'message-board',
+      component: MessageBoardView,
+      meta: {
+        title: '云端留言板'
       }
     }
   ],

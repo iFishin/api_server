@@ -11,6 +11,8 @@ import mqttRoutes from '@routes/mqttRoutes';
 import apiDocRoutes from '@routes/apiDocRoutes';
 import { errorHandler } from '@middlewares/errorHandler';
 import fileRoutes from '@routes/fileRoutes';
+import postgresRoutes from '@routes/postgresRoutes';
+import messageRoutes from '@routes/messageRoutes';
 import { setupWebDAV } from '@services/webdavService';
 import { getApiDocs } from '@services/apiDocService';
 import { mqttService } from '@services/mqttService';
@@ -157,6 +159,8 @@ app.use('/api/tcp', tcpRoutes);
 app.use('/api/udp', udpRoutes);
 app.use('/api/mqtt', mqttRoutes);
 app.use('/api/files', fileRoutes);
+app.use('/api/postgres', postgresRoutes);
+app.use('/api/messages', messageRoutes);
 app.use('/api/docs', apiDocRoutes);
 
 // 专门处理 favicon.ico 路由

@@ -1,6 +1,7 @@
 const app = require('./app');
 import dotenv from 'dotenv';
 import { openDb } from './db';
+import { testConnection } from './config/postgres';
 import https from 'https';
 import fs from 'fs';
 import path from 'path';
@@ -22,6 +23,7 @@ const SSL_KEY = path.join(certsDir, 'server.key');
 const SSL_CERT = path.join(certsDir, 'server.crt');
 
 async function initDb() {
+    // 初始化 SQLite
     const db = await openDb();
     await db.exec(`
         CREATE TABLE IF NOT EXISTS users (
@@ -30,7 +32,10 @@ async function initDb() {
             email TEXT NOT NULL UNIQUE
         )
     `);
-    console.log('Database initialized');
+    console.log('✅ SQLite database initialized');
+    
+    // 测试 PostgreSQL 连接
+    await testConnection();
 }
 
 // 启动服务器
