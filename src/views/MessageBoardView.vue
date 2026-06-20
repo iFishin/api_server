@@ -209,7 +209,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted, computed } from 'vue';
-import axios from 'axios';
+import api from '@/utils/api';
 
 // 类型定义
 interface Message {
@@ -337,7 +337,7 @@ async function loadMessages() {
   try {
     loading.value = true;
     const offset = (page.value - 1) * limit;
-    const response = await axios.get(`/api/messages/tree?limit=${limit}&offset=${offset}`);
+    const response = await api.get(`/api/messages/tree?limit=${limit}&offset=${offset}`);
     
     if (response.data.success) {
       const newMessages = response.data.data;
@@ -360,7 +360,7 @@ async function loadMessages() {
 // 加载统计信息
 async function loadStatistics() {
   try {
-    const response = await axios.get('/api/messages/statistics');
+    const response = await api.get('/api/messages/statistics');
     if (response.data.success) {
       statistics.value = response.data.data;
     }
@@ -412,7 +412,7 @@ async function submitMessage() {
       payload.parent_id = replyingTo.value.id;
     }
     
-    const response = await axios.post('/api/messages', payload);
+    const response = await api.post('/api/messages', payload);
     
     if (response.data.success) {
       // 记录提交时间
@@ -485,7 +485,7 @@ async function toggleLike(message: Message) {
   
   try {
     const endpoint = isCurrentlyLiked ? 'unlike' : 'like';
-    const response = await axios.post(`/api/messages/${messageId}/${endpoint}`);
+    const response = await api.post(`/api/messages/${messageId}/${endpoint}`);
     
     if (response.data.success) {
       message.likes = response.data.data.likes;

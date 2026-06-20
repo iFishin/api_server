@@ -271,12 +271,37 @@ const gridModeNames = {
 // 导航项目配置
 const navItems: NavItem[] = [
     {
-        title: 'OpenList',
+        title: 'Pan',
         description: '内部网盘',
         category: 'tools',
         icon: 'fas fa-cloud',
-        route: '/openlist',
+        route: '/pan',
         color: '#2ecc71'
+    },
+    {
+        title: 'Document Center',
+        description: '短距离文档中心，试行',
+        category: 'tools',
+        icon: 'fas fa-folder',
+        route: '#',
+        url: 'http://st-shortrange.quecinfo.com:2333/doc/shortrange/',
+        color: '#3498db'
+    },
+    {
+        title: 'Qinglong',
+        description: '青龙面板管理',
+        category: 'tools',
+        icon: 'fas fa-tachometer-alt',
+        route: '/qinglong',
+        color: '#e67e22'
+    },
+    {
+        title: '1Panel',
+        description: '内部管理面板',
+        category: 'tools',
+        icon: 'fas fa-tachometer-alt',
+        route: '/1panel',
+        color: '#e67e22'
     },
     {
         title: 'HTTP API',
@@ -388,6 +413,15 @@ const navItems: NavItem[] = [
         color: '#9b59b6'
     },
     {
+        title: 'ShortRange Doc',
+        description: '短距离文档中心',
+        category: 'management',
+        icon: 'fas fa-folder',
+        route: '#',
+        url: 'https://short-range.quectel.com/',
+        color: '#9b59b6'
+    },
+    {
         title: 'QDesk',
         description: '内部工单与支持系统',
         category: 'management',
@@ -422,9 +456,9 @@ const navItems: NavItem[] = [
         description: '移远人力资源系统',
         category: 'management',
         icon: 'fas fa-user',
-        image: 'https://hr.quectel.com/skin/images/index/index-logo.png',
+        image: 'https://qhr.quectel.com/skin/images/index/index-logo.png',
         route: '#',
-        url: 'https://qhr.quectel.com/',
+        url: 'https://hr.quectel.com/portal/index',
         color: '#FFFFFF'
     },
     {
@@ -451,7 +485,7 @@ const navItems: NavItem[] = [
         category: 'management',
         icon: 'fas fa-graduation-cap',
         route: '#',
-        url: 'https://learning.quectel.com/',
+        url: 'https://q-learning.quectel.com/',
         color: '#FF9800'
     },
     {
@@ -487,7 +521,7 @@ const navItems: NavItem[] = [
         category: 'management',
         icon: 'fas fa-users-cog',
         route: '#',
-        url: 'https://association.quectel.com/',
+        url: 'https://qassociation.quectel.com/',
         color: '#2980b9'
     },
     {

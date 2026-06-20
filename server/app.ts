@@ -269,11 +269,23 @@ if (isProduction) {
   // temps 目录服务
   app.use("/temps", express.static(tempsPath));
   
-  // 处理 SPA 路由 - 所有非 API 路由都返回 index.html
+  // 处理不应该存在的文件扩展名 - 返回 404 而不是 SPA
   app.get('*', (req, res, next) => {
-    // 如果是 API 路由，跳过
+    // 如果是 API 路由或 WebDAV，跳过
     if (req.path.startsWith('/api/') || req.path.startsWith('/webdav/')) {
-      return next();
+      next();
+      return;
+    }
+    
+    // 检查是否是不应该存在的文件类型（如 .db, .sql, .bak 等）
+    const suspiciousExtensions = /\.(db|sql|sqlite|sqlite3|bak|backup|old|tmp)$/i;
+    if (suspiciousExtensions.test(req.path)) {
+      res.status(404).json({
+        error: 'File not found',
+        message: 'The requested resource does not exist',
+        path: req.path
+      });
+      return;
     }
     
     // 为 SPA 路由设置正确的头信息
