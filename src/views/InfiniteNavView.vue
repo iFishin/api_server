@@ -209,6 +209,8 @@ function canDragOnTarget(el: EventTarget | null): boolean {
   const t = el as HTMLElement;
   // 功能按钮/菜单/弹窗 → 不拖动画布
   if (t.closest('.tool-btn') || t.closest('.ctx-menu') || t.closest('.modal-overlay')) return false;
+  // 编辑模式下：分组/磁贴内部不拖动画布（让分组拖拽和磁贴排序优先）
+  if (editMode.value && (t.closest('.nav-group') || t.closest('.free-tile-wrapper'))) return false;
   // 编辑模式下的排序手柄 → 拖拽排序，不走画布
   if (t.closest('.tile-drag-handle')) return false;
   // 编辑模式下的编辑按钮 → 不走画布
@@ -217,6 +219,8 @@ function canDragOnTarget(el: EventTarget | null): boolean {
   if (t.closest('.group-header')) return false;
   // 分组标题栏编辑按钮 → 不走画布
   if (t.closest('.g-btn')) return false;
+  // 编辑模式下的排序手柄（AppTile 里的）
+  if (t.closest('.tile-sort-handle')) return false;
   return true;
 }
 
@@ -479,7 +483,7 @@ let pushTimer: ReturnType<typeof setTimeout> | null = null;
 watch(() => config.value.groups.map(g => g.tiles.length), () => {
   if (pushTimer) clearTimeout(pushTimer);
   pushTimer = setTimeout(pushApartAll, 100);
-}, { deep: false });
+}, { immediate: true, deep: false });
 
 onMounted(() => { document.addEventListener('keydown', handleKeyDown); });
 onUnmounted(() => { document.removeEventListener('keydown', handleKeyDown); stopInertia(); if (pushTimer) clearTimeout(pushTimer); });
