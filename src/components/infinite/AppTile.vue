@@ -79,6 +79,7 @@ const nextSize = computed(() => {
 });
 
 function handleClick() {
+  if (props.editMode) return;
   if (props.tile.url) {
     const isAbs = /^https?:\/\//i.test(props.tile.url);
     if (isAbs) { window.open(props.tile.url, '_blank'); return; }

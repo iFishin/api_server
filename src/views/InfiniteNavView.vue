@@ -101,7 +101,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
 import type { NavGroup as NavGroupType, AppTile as AppTileType } from '@/types/nav-config';
 import { useNavConfig } from '@/composables/useNavConfig';
 import NavGroup from '@/components/infinite/NavGroup.vue';
@@ -302,6 +302,35 @@ function rectsOverlap(a: { x: number; y: number; w: number; h: number }, b: { x:
   return !(a.x + a.w + padding < b.x || b.x + b.w + padding < a.x || a.y + a.h + padding < b.y || b.y + b.h + padding < a.y);
 }
 
+/** 迭代推开所有重叠分组 */
+function pushApartAll() {
+  const groups = config.value.groups;
+  if (groups.length < 2) return;
+  const PADDING = 20, MAX_ITER = 50;
+  for (let iter = 0; iter < MAX_ITER; iter++) {
+    let anyOverlap = false;
+    for (let i = 0; i < groups.length; i++) {
+      for (let j = i + 1; j < groups.length; j++) {
+        const a = getGroupRect(groups[i]), b = getGroupRect(groups[j]);
+        if (!rectsOverlap(a, b, PADDING)) continue;
+        anyOverlap = true;
+        const overlapX = Math.min(a.x + a.w + PADDING - b.x, b.x + b.w + PADDING - a.x);
+        const overlapY = Math.min(a.y + a.h + PADDING - b.y, b.y + b.h + PADDING - a.y);
+        if (overlapX < overlapY) {
+          const push = overlapX * 0.5;
+          groups[i].position.x -= push;
+          groups[j].position.x += push;
+        } else {
+          const push = overlapY * 0.5;
+          groups[i].position.y -= push;
+          groups[j].position.y += push;
+        }
+      }
+    }
+    if (!anyOverlap) break;
+  }
+}
+
 function handleGroupDragStart(group: NavGroupType, e: MouseEvent) {
   if (!editMode.value) return;
   let ox = e.clientX, oy = e.clientY;
@@ -416,6 +445,7 @@ function handleModalSave(data: Record<string, any>) {
     updateFreeTile(editingTile.value.id, { title: data.title, description: data.description, url: data.url, route: data.route, icon: data.icon, iconType: data.iconType, color: data.color, size: data.size });
   }
   closeModal();
+  pushApartAll();
 }
 
 // ========== NAVIGATION ==========
@@ -445,8 +475,14 @@ function handleKeyDown(e: KeyboardEvent) {
 }
 
 // ========== LIFECYCLE ==========
+let pushTimer: ReturnType<typeof setTimeout> | null = null;
+watch(() => config.value.groups.map(g => g.tiles.length), () => {
+  if (pushTimer) clearTimeout(pushTimer);
+  pushTimer = setTimeout(pushApartAll, 100);
+}, { deep: false });
+
 onMounted(() => { document.addEventListener('keydown', handleKeyDown); });
-onUnmounted(() => { document.removeEventListener('keydown', handleKeyDown); stopInertia(); });
+onUnmounted(() => { document.removeEventListener('keydown', handleKeyDown); stopInertia(); if (pushTimer) clearTimeout(pushTimer); });
 </script>
 
 <style scoped>
