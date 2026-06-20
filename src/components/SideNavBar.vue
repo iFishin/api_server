@@ -1,5 +1,5 @@
 <template>
-    <div class="sidebar" v-show="!isHomePage">
+    <div class="sidebar" v-show="!shouldHideSidebar">
         <div class="sidebar-header">
             <h3>{{ currentPageTitle }}</h3>
         </div>
@@ -35,6 +35,10 @@ export default defineComponent({
         const route = useRoute();
         const currentPageTitle = computed(() => store.state?.currentPageTitle || 'Home');
         const isHomePage = computed(() => route.path === '/' || route.path === '/home');
+        const shouldHideSidebar = computed(() => {
+            const hiddenPaths = ['/', '/home', '/http-api', '/webdav', '/infinite-nav'];
+            return hiddenPaths.includes(route.path);
+        });
 
         const categories = computed(() => {
             const currentRoute = route.path.replace(/^\//, '').toLowerCase();
@@ -51,31 +55,25 @@ export default defineComponent({
                         { id: 'dev', name: 'Development', icon: 'fas fa-code', path: '/toolkit?category=dev' },
                         { id: 'others', name: 'Others', icon: 'fas fa-folder', path: '/toolkit?category=others' }
                     ];
-                case 'mqtt':
-                    return store?.state.mqttCategories || [
-                        { id: 'publish', name: 'Publish', icon: 'fas fa-paper-plane', path: '/mqtt?category=publish' },
-                        { id: 'subscribe', name: 'Subscribe', icon: 'fas fa-rss', path: '/mqtt?category=subscribe' },
-                        { id: 'connection', name: 'Connection', icon: 'fas fa-plug', path: '/mqtt?category=connection' }
+                case 'mqtt-api':
+                    return (store?.state.mqttCategories?.length > 0) ? store.state.mqttCategories : [
+                        { id: 'publish', name: 'Publish', icon: 'fas fa-paper-plane', path: '/mqtt-api?category=publish' },
+                        { id: 'subscribe', name: 'Subscribe', icon: 'fas fa-rss', path: '/mqtt-api?category=subscribe' },
+                        { id: 'connection', name: 'Connection', icon: 'fas fa-plug', path: '/mqtt-api?category=connection' }
                     ];
-                case 'tcp_udp':
-                    return store?.state.tcpUdpCategories || [
-                        { id: 'overview', name: 'Overview', icon: 'fas fa-tachometer-alt', path: '/tcp_udp?category=overview' },
-                        { id: 'tcp', name: 'TCP Debug', icon: 'fas fa-plug', path: '/tcp_udp?category=tcp' },
-                        { id: 'udp', name: 'UDP Debug', icon: 'fas fa-broadcast-tower', path: '/tcp_udp?category=udp' },
-                        { id: 'monitor', name: 'Real-time Monitor', icon: 'fas fa-chart-line', path: '/tcp_udp?category=monitor' },
-                        { id: 'history', name: 'Message History', icon: 'fas fa-history', path: '/tcp_udp?category=history' }
+                case 'tcp-udp-api':
+                    return (store?.state.tcpUdpCategories?.length > 0) ? store.state.tcpUdpCategories : [
+                        { id: 'overview', name: 'Overview', icon: 'fas fa-tachometer-alt', path: '/tcp-udp-api?category=overview' },
+                        { id: 'tcp', name: 'TCP Debug', icon: 'fas fa-plug', path: '/tcp-udp-api?category=tcp' },
+                        { id: 'udp', name: 'UDP Debug', icon: 'fas fa-broadcast-tower', path: '/tcp-udp-api?category=udp' },
+                        { id: 'monitor', name: 'Real-time Monitor', icon: 'fas fa-chart-line', path: '/tcp-udp-api?category=monitor' },
+                        { id: 'history', name: 'Message History', icon: 'fas fa-history', path: '/tcp-udp-api?category=history' }
                     ];
-                case 'users':
-                    return store?.state.userCategories || [
-                        { id: 'management', name: 'User Management', icon: 'fas fa-users-cog', path: '/users?category=management' },
-                        { id: 'auth', name: 'Authentication', icon: 'fas fa-key', path: '/users?category=auth' },
-                        { id: 'profile', name: 'Profile', icon: 'fas fa-user-circle', path: '/users?category=profile' }
-                    ];
-                case 'webdav':
-                    return store?.state.webdavCategories || [
-                        { id: 'files', name: 'File Management', icon: 'fas fa-folder', path: '/webdav?category=files' },
-                        { id: 'upload', name: 'Upload', icon: 'fas fa-cloud-upload-alt', path: '/webdav?category=upload' },
-                        { id: 'download', name: 'Download', icon: 'fas fa-cloud-download-alt', path: '/webdav?category=download' }
+                case 'users-api':
+                    return (store?.state.userCategories?.length > 0) ? store.state.userCategories : [
+                        { id: 'management', name: 'User Management', icon: 'fas fa-users-cog', path: '/users-api?category=management' },
+                        { id: 'auth', name: 'Authentication', icon: 'fas fa-key', path: '/users-api?category=auth' },
+                        { id: 'profile', name: 'Profile', icon: 'fas fa-user-circle', path: '/users-api?category=profile' }
                     ];
                 default:
                     return store?.state.categories || [];
@@ -99,6 +97,7 @@ export default defineComponent({
             categories,
             currentPageTitle,
             isHomePage,
+            shouldHideSidebar,
             isActiveLink
         };
     }

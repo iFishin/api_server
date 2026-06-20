@@ -68,6 +68,8 @@ router.post('/test/form', upload.none(), httpController.postForm);
 
 // 其他 接口
 router.post('/overtime/calculate', handleCalculateOvertime)
+// 支持GET请求的加班计算（通过查询参数）
+router.get('/overtime/calculate', handleCalculateOvertime)
 
 // TODO: JSON文件管理路由 - 需要修复TypeScript类型问题
 // router.get('/files/list', httpController.listJsonFiles);

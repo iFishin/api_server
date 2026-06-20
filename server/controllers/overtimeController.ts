@@ -10,8 +10,41 @@ export const handleCalculateOvertime = async (req: Request, res: Response): Prom
   try {
     const requestData = req.body;
     
-    // 基本验证
-    if (!requestData) {
+    // 对于GET请求，如果没有body，使用默认的加班数据结构
+    if (!requestData && req.method === 'GET') {
+      // 从查询参数获取配置
+      const hourlyRate = Number(req.query.hourlyRate) || 20;
+      const overtimeStartTime = (req.query.overtimeStartTime as string) || '19:00';
+      const region = req.query.region as string || 'default';
+      
+      // 使用默认的加班数据结构进行演示
+      const defaultData = {
+        hourlyRate,
+        overtimeStartTime,
+        region,
+        customData: [
+          {
+            date: new Date().toISOString().split('T')[0],
+            startTime: "09:00",
+            endTime: "21:00",
+            dayType: "工作日",
+            isWorkDay: true
+          }
+        ]
+      };
+      
+      const result = await processOvertimeJson(defaultData);
+      res.status(200).json({
+        success: true,
+        data: result,
+        message: 'GET请求示例计算完成 - 参数: hourlyRate=' + hourlyRate + ', overtimeStartTime=' + overtimeStartTime,
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+    
+    // 基本验证（POST请求）
+    if (!requestData && req.method === 'POST') {
       res.status(400).json({ error: '请求体不能为空' });
       return;
     }

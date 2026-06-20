@@ -11,6 +11,8 @@ import mqttRoutes from '@routes/mqttRoutes';
 import apiDocRoutes from '@routes/apiDocRoutes';
 import { errorHandler } from '@middlewares/errorHandler';
 import fileRoutes from '@routes/fileRoutes';
+import postgresRoutes from '@routes/postgresRoutes';
+import messageRoutes from '@routes/messageRoutes';
 import { setupWebDAV } from '@services/webdavService';
 import { getApiDocs } from '@services/apiDocService';
 import { mqttService } from '@services/mqttService';
@@ -157,6 +159,8 @@ app.use('/api/tcp', tcpRoutes);
 app.use('/api/udp', udpRoutes);
 app.use('/api/mqtt', mqttRoutes);
 app.use('/api/files', fileRoutes);
+app.use('/api/postgres', postgresRoutes);
+app.use('/api/messages', messageRoutes);
 app.use('/api/docs', apiDocRoutes);
 
 // 专门处理 favicon.ico 路由
@@ -265,11 +269,23 @@ if (isProduction) {
   // temps 目录服务
   app.use("/temps", express.static(tempsPath));
   
-  // 处理 SPA 路由 - 所有非 API 路由都返回 index.html
+  // 处理不应该存在的文件扩展名 - 返回 404 而不是 SPA
   app.get('*', (req, res, next) => {
-    // 如果是 API 路由，跳过
+    // 如果是 API 路由或 WebDAV，跳过
     if (req.path.startsWith('/api/') || req.path.startsWith('/webdav/')) {
-      return next();
+      next();
+      return;
+    }
+    
+    // 检查是否是不应该存在的文件类型（如 .db, .sql, .bak 等）
+    const suspiciousExtensions = /\.(db|sql|sqlite|sqlite3|bak|backup|old|tmp)$/i;
+    if (suspiciousExtensions.test(req.path)) {
+      res.status(404).json({
+        error: 'File not found',
+        message: 'The requested resource does not exist',
+        path: req.path
+      });
+      return;
     }
     
     // 为 SPA 路由设置正确的头信息
@@ -283,14 +299,25 @@ if (isProduction) {
     res.sendFile(path.join(__dirname, '..', 'index.html'));
   });
 } else {
-  // 开发环境的静态文件服务
-  app.use(express.static(publicPath));
-  app.use("/temps", express.static(tempsPath));
-  
-  // 开发环境下的路由处理
+  // 开发环境下的API根路径 - 返回API信息而不是HTML页面
   app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, "public", "index.html"));
+    res.json({
+      message: 'API Server 开发环境',
+      version: '1.0.0',
+      environment: 'development',
+      endpoints: {
+        api: '/api',
+        temps: '/temps',
+        webdav: '/webdav'
+      },
+      frontend: 'http://localhost:5173',
+      timestamp: new Date().toISOString()
+    });
   });
+  
+  // 开发环境的静态文件服务（放在API路由之后）
+  app.use('/static', express.static(publicPath));
+  app.use("/temps", express.static(tempsPath));
 }
 
 app.get("/script.js", (req, res) => {

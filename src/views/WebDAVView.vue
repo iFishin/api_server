@@ -93,6 +93,10 @@
                         <span class="file-date">{{ formatDate(file.modifiedAt) }}</span>
                     </div>
                     <div class="file-actions">
+                        <button @click="copyDownloadLink(file)" class="btn copy" title="复制下载链接">
+                            <i class="fas fa-link"></i>
+                            复制链接
+                        </button>
                         <button @click="downloadFile(file)" class="btn">下载</button>
                         <button @click="deleteFile(file)" class="btn danger">删除</button>
                     </div>
@@ -330,6 +334,53 @@ function downloadFile(file: FileItem) {
     window.open(`${API_BASE_URL}/api/files/download/${encodeURIComponent(file.name)}`, '_blank');
 }
 
+// 复制下载链接
+async function copyDownloadLink(file: FileItem) {
+    // 获取完整的下载链接URL
+    const baseUrl = window.location.origin; // 获取当前页面的协议+域名+端口
+    const downloadPath = `/api/files/download/${encodeURIComponent(file.name)}`;
+    const fullDownloadUrl = `${baseUrl}${downloadPath}`;
+    
+    try {
+        // 尝试使用现代浏览器的 Clipboard API
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(fullDownloadUrl);
+            showNotification(`完整下载链接已复制到剪贴板: ${file.name}`, 'success');
+        } else {
+            // 兼容旧浏览器的方法
+            const textArea = document.createElement('textarea');
+            textArea.value = fullDownloadUrl;
+            textArea.style.position = 'fixed';
+            textArea.style.opacity = '0';
+            textArea.style.pointerEvents = 'none';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showNotification(`完整下载链接已复制到剪贴板: ${file.name}`, 'success');
+                } else {
+                    throw new Error('复制命令执行失败');
+                }
+            } catch (err) {
+                console.error('复制失败:', err);
+                showNotification(`复制失败，请手动复制链接: ${fullDownloadUrl}`, 'error');
+            } finally {
+                document.body.removeChild(textArea);
+            }
+        }
+    } catch (err) {
+        console.error('复制链接失败:', err);
+        showNotification(`复制失败: ${(err as Error).message}`, 'error');
+        
+        // 如果复制失败，显示一个包含完整链接的提示框
+        const fallbackMessage = `无法自动复制，请手动复制以下完整链接:\n${fullDownloadUrl}`;
+        alert(fallbackMessage);
+    }
+}
+
 // 处理文件点击
 async function handleFileClick(file: FileItem) {
     // 检查是否为文本文件
@@ -452,6 +503,15 @@ defineOptions({
     background-color: #2980b9;
 }
 
+.btn.copy {
+    background-color: #27ae60;
+    color: white;
+}
+
+.btn.copy:hover {
+    background-color: #229954;
+}
+
 .btn.danger {
     background-color: #e74c3c;
     color: white;
@@ -567,7 +627,22 @@ defineOptions({
 
 .file-actions {
     display: flex;
-    gap: 10px;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.file-actions .btn {
+    min-width: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+.file-actions .btn i {
+    font-size: 0.9em;
 }
 
 /* 拖放区域样式 */
@@ -778,6 +853,57 @@ defineOptions({
     .preview-container {
         height: 500px;
         max-height: 70vh;
+    }
+}
+
+@media (max-width: 768px) {
+    .file-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+    }
+    
+    .file-info {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        text-align: left;
+    }
+    
+    .file-actions {
+        justify-content: center;
+        gap: 6px;
+    }
+    
+    .file-actions .btn {
+        flex: 1;
+        min-width: 60px;
+        font-size: 12px;
+        padding: 6px 8px;
+    }
+    
+    .header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+    }
+    
+    .actions {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .webdav-container {
+        padding: 15px;
+    }
+    
+    .file-actions .btn {
+        font-size: 11px;
+        padding: 5px 6px;
+    }
+    
+    .file-actions .btn i {
+        display: none;
     }
 }
 </style>
