@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { postgresService } from '../services/postgresService';
+import { userService, type User } from '../services/userService';
 
 /**
  * PostgreSQL 控制器
@@ -36,7 +37,7 @@ export class PostgresController {
     async createUser(req: Request, res: Response) {
         try {
             const { name, email, age } = req.body;
-            
+
             // 验证必填字段
             if (!name || !email) {
                 res.status(400).json({
@@ -45,19 +46,11 @@ export class PostgresController {
                 });
                 return;
             }
-            
-            const result = await postgresService.createUser({ name, email, age });
-            
-            if (result.success) {
-                res.status(201).json(result);
-            } else {
-                res.status(400).json(result);
-            }
+
+            const user = await userService.createUser({ name, email, age });
+            res.status(201).json({ success: true, data: user });
         } catch (error) {
-            res.status(500).json({
-                success: false,
-                error: '服务器内部错误'
-            });
+            res.status(400).json({ success: false, error: (error as Error).message });
         }
     }
     
@@ -69,145 +62,85 @@ export class PostgresController {
         try {
             const limit = parseInt(req.query.limit as string) || 100;
             const offset = parseInt(req.query.offset as string) || 0;
-            
-            const result = await postgresService.getAllUsers(limit, offset);
-            
-            if (result.success) {
-                res.status(200).json(result);
-            } else {
-                res.status(500).json(result);
-            }
+
+            const users = await userService.getAllUsers();
+            // userService 默认按 id DESC 排序，这里做分页
+            const paged = users.slice(offset, offset + limit);
+            res.status(200).json({ success: true, data: paged, total: users.length });
         } catch (error) {
-            res.status(500).json({
-                success: false,
-                error: '服务器内部错误'
-            });
+            res.status(500).json({ success: false, error: (error as Error).message });
         }
     }
-    
-    /**
-     * 根据 ID 获取用户
-     * GET /api/postgres/users/:id
-     */
+
     async getUserById(req: Request, res: Response) {
         try {
             const id = parseInt(req.params.id);
-            
+
             if (isNaN(id)) {
-                res.status(400).json({
-                    success: false,
-                    error: '无效的用户 ID'
-                });
+                res.status(400).json({ success: false, error: '无效的用户 ID' });
                 return;
             }
-            
-            const result = await postgresService.getUserById(id);
-            
-            if (result.success) {
-                res.status(200).json(result);
+
+            const user = await userService.getUserById(id);
+            if (user) {
+                res.status(200).json({ success: true, data: user });
             } else {
-                res.status(404).json(result);
+                res.status(404).json({ success: false, error: '用户不存在' });
             }
         } catch (error) {
-            res.status(500).json({
-                success: false,
-                error: '服务器内部错误'
-            });
+            res.status(500).json({ success: false, error: (error as Error).message });
         }
     }
-    
-    /**
-     * 搜索用户
-     * GET /api/postgres/users/search?email=example
-     */
+
     async searchUsers(req: Request, res: Response) {
         try {
             const email = req.query.email as string;
-            
             if (!email) {
-                res.status(400).json({
-                    success: false,
-                    error: 'email 参数是必填的'
-                });
+                res.status(400).json({ success: false, error: 'email 参数是必填的' });
                 return;
             }
-            
-            const result = await postgresService.searchUsersByEmail(email);
-            
-            if (result.success) {
-                res.status(200).json(result);
-            } else {
-                res.status(500).json(result);
-            }
+
+            const users = await userService.getAllUsers();
+            const filtered = users.filter(u => u.email?.toLowerCase().includes(email.toLowerCase()));
+            res.status(200).json({ success: true, data: filtered });
         } catch (error) {
-            res.status(500).json({
-                success: false,
-                error: '服务器内部错误'
-            });
+            res.status(500).json({ success: false, error: (error as Error).message });
         }
     }
-    
-    /**
-     * 更新用户
-     * PUT /api/postgres/users/:id
-     * Body: { name?: string, email?: string, age?: number }
-     */
+
     async updateUser(req: Request, res: Response) {
         try {
             const id = parseInt(req.params.id);
-            
+
             if (isNaN(id)) {
-                res.status(400).json({
-                    success: false,
-                    error: '无效的用户 ID'
-                });
+                res.status(400).json({ success: false, error: '无效的用户 ID' });
                 return;
             }
-            
-            const updates = req.body;
-            const result = await postgresService.updateUser(id, updates);
-            
-            if (result.success) {
-                res.status(200).json(result);
+
+            const updatedUser = await userService.updateUser(id, req.body as User);
+            if (updatedUser) {
+                res.status(200).json({ success: true, data: updatedUser });
             } else {
-                res.status(400).json(result);
+                res.status(404).json({ success: false, error: '用户不存在' });
             }
         } catch (error) {
-            res.status(500).json({
-                success: false,
-                error: '服务器内部错误'
-            });
+            res.status(400).json({ success: false, error: (error as Error).message });
         }
     }
-    
-    /**
-     * 删除用户
-     * DELETE /api/postgres/users/:id
-     */
+
     async deleteUser(req: Request, res: Response) {
         try {
             const id = parseInt(req.params.id);
-            
+
             if (isNaN(id)) {
-                res.status(400).json({
-                    success: false,
-                    error: '无效的用户 ID'
-                });
+                res.status(400).json({ success: false, error: '无效的用户 ID' });
                 return;
             }
-            
-            const result = await postgresService.deleteUser(id);
-            
-            if (result.success) {
-                res.status(200).json(result);
-            } else {
-                res.status(404).json(result);
-            }
+
+            await userService.deleteUser(id);
+            res.status(200).json({ success: true, message: '用户删除成功' });
         } catch (error) {
-            res.status(500).json({
-                success: false,
-                error: '服务器内部错误'
-            });
+            res.status(404).json({ success: false, error: (error as Error).message });
         }
     }
     

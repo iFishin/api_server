@@ -31,7 +31,20 @@ pids
 
 *.tsbuildinfo
 
-# 防止意外生成的JS文件被提交
+# Environment files with secrets
+.env
+.env.production
+.env.local
+.env.*.local
+server/.env
+
+# TLS/SSL certificates
+server/certs/
+
+# Temporary files
+dicts/
+
+# Prevent accidental JS generation
 src/**/*.vue.js
 src/**/*.ts.js
 src/components/**/*.js

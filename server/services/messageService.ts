@@ -203,24 +203,34 @@ export class MessageService {
                 LIMIT $1 OFFSET $2
             `;
             const topLevelResult = await pool.query(topLevelQuery, [limit, offset]);
-            
-            // 为每个顶级留言获取回复
-            const messagesWithReplies = await Promise.all(
-                topLevelResult.rows.map(async (message) => {
-                    const repliesQuery = `
-                        SELECT * FROM messages
-                        WHERE parent_id = $1 AND status = 'approved'
-                        ORDER BY created_at ASC
-                    `;
-                    const repliesResult = await pool.query(repliesQuery, [message.id]);
-                    
-                    return {
-                        ...message,
-                        replies: repliesResult.rows,
-                        reply_count: repliesResult.rows.length
-                    };
-                })
-            );
+
+            // 批量获取所有回复（替代原先的 N+1 次独立查询）
+            const topLevelIds = topLevelResult.rows.map(m => m.id);
+            const repliesMap = new Map<number, any[]>();
+            if (topLevelIds.length > 0) {
+                const repliesQuery = `
+                    SELECT * FROM messages
+                    WHERE parent_id = ANY($1::int[]) AND status = 'approved'
+                    ORDER BY created_at ASC
+                `;
+                const repliesResult = await pool.query(repliesQuery, [topLevelIds]);
+                // 按 parent_id 分组
+                for (const reply of repliesResult.rows) {
+                    const existing = repliesMap.get(reply.parent_id) || [];
+                    existing.push(reply);
+                    repliesMap.set(reply.parent_id, existing);
+                }
+            }
+
+            // 组装留言树
+            const messagesWithReplies = topLevelResult.rows.map(message => {
+                const replies = repliesMap.get(message.id) || [];
+                return {
+                    ...message,
+                    replies,
+                    reply_count: replies.length
+                };
+            });
             
             return {
                 success: true,

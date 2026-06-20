@@ -45,15 +45,8 @@ router.get('/delay/:ms', httpController.getDelay);
 router.get('/headers', httpController.getHeaders);
 router.get('/echo-headers', httpController.getEchoHeaders);
 
-// 数据负载路由
-router.get('/payload/1k', httpController.get1K);
-router.get('/payload/2k', httpController.get2K);
-router.get('/payload/4k', httpController.get4K);
-router.get('/payload/8k', httpController.get8K);
-router.get('/payload/1m', httpController.get1M);
-router.get('/payload/2m', httpController.get2M);
-router.get('/payload/4m', httpController.get4M);
-router.get('/payload/8m', httpController.get8M);
+// 数据负载路由（参数化，替代原先 8 条独立路由）
+router.get('/payload/:size', httpController.getPayload);
 
 // HTTP 测试路由
 router.get('/test/get', httpController.get_basic);

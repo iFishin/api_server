@@ -117,3 +117,6 @@ export class UserService {
         }
     }
 }
+
+// 导出服务实例
+export const userService = new UserService();

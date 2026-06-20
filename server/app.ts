@@ -69,18 +69,23 @@ app.use(cors({
     };
     
     // 检查是否允许访问
-    if (allowedOrigins.includes(origin) || 
+    if (allowedOrigins.includes(origin) ||
         origin.match(/^http:\/\/[\d.]+:5173$/) ||
         origin.match(/^http:\/\/[\d.]+:8080$/) ||
         origin.match(/^http:\/\/[\d.]+:3000$/) ||
         origin.match(/^http:\/\/[\d.]+:80$/) ||
-        origin.match(/^http:\/\/[\d.]+$/) ||   // 添加不带端口的IP访问
+        origin.match(/^http:\/\/[\d.]+$/) ||
+        origin.match(/^http:\/\/localhost:\d+$/) ||
+        origin.match(/^http:\/\/127\.0\.0\.1:\d+$/) ||
         isPrivateNetwork(origin)) {
+      callback(null, true);
+    } else if (process.env.NODE_ENV !== 'production') {
+      // 非生产环境下调试时允许所有来源
+      console.log(`CORS allowed (dev mode): ${origin}`);
       callback(null, true);
     } else {
       console.log(`CORS blocked origin: ${origin}`);
-      // 对于开发和调试，我们可以更宽松一些
-      callback(null, true);  // 临时允许所有来源，便于调试
+      callback(null, false);
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -126,12 +131,14 @@ app.use((req, res, next) => {
 // URL编码数据解析中间件
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-// 调试中间件
-app.use((req, res, next) => {
-  console.log('Request URL:', req.url);
-  console.log('Request Method:', req.method);
-  next();
-});
+// 调试中间件（仅开发环境）
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    console.log('Request URL:', req.url);
+    console.log('Request Method:', req.method);
+    next();
+  });
+}
 
 // 静态资源中间件 - 防止HTTPS重定向
 app.use((req, res, next) => {
