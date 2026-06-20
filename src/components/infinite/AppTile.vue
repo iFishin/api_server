@@ -7,7 +7,7 @@
     ]"
     :style="{ '--tile-color': tile.color }"
     @click.stop="handleClick"
-    @dblclick.stop="$emit('edit', tile)"
+    @contextmenu.prevent="$emit('context-menu', tile, $event)"
   >
     <!-- 拖拽手柄（自由磁贴拖动用） -->
     <div
@@ -32,13 +32,7 @@
       <span v-if="tile.description && tile.size !== 'small'" class="tile-desc">{{ tile.description }}</span>
     </div>
 
-    <!-- 操作层 -->
-    <div v-if="editable" class="tile-actions">
-      <button class="tile-btn edit" title="编辑" @click.stop="$emit('edit', tile)"><i class="fas fa-pen"></i></button>
-      <button class="tile-btn delete" title="删除" @click.stop="$emit('delete', tile)"><i class="fas fa-times"></i></button>
-    </div>
-
-    <!-- 伸缩手柄（右下角） -->
+    <!-- 伸缩手柄 -->
     <div
       v-if="resizable"
       class="tile-resize-handle"
@@ -57,16 +51,14 @@ import type { AppTile, TileSize } from '@/types/nav-config';
 
 const props = defineProps<{
   tile: AppTile;
-  editable?: boolean;
   draggable?: boolean;
   resizable?: boolean;
 }>();
 
 const emit = defineEmits<{
-  edit: [tile: AppTile];
-  delete: [tile: AppTile];
   'drag-start': [tile: AppTile, event: MouseEvent];
   'resize': [tile: AppTile, newSize: TileSize];
+  'context-menu': [tile: AppTile, event: MouseEvent];
 }>();
 
 const router = useRouter();
@@ -124,9 +116,7 @@ function handleClick() {
   cursor: pointer;
   transition:
     transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 0.25s ease,
-    width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
-    height 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow 0.25s ease;
   user-select: none;
   text-align: center;
   overflow: visible;
@@ -282,49 +272,6 @@ function handleClick() {
 
 .size-large .tile-desc {
   font-size: 0.7rem;
-}
-
-/* ---- 操作按钮 ---- */
-.tile-actions {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  display: flex;
-  gap: 3px;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  z-index: 5;
-}
-
-.app-tile:hover .tile-actions {
-  opacity: 1;
-}
-
-.tile-btn {
-  width: 22px;
-  height: 22px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.6rem;
-  color: white;
-  transition: background 0.15s ease, transform 0.15s ease;
-  background: rgba(0, 0, 0, 0.45);
-}
-
-.tile-btn:hover {
-  transform: scale(1.15);
-}
-
-.tile-btn.edit:hover {
-  background: #3498db;
-}
-
-.tile-btn.delete:hover {
-  background: #e74c3c;
 }
 
 /* ---- 伸缩手柄 ---- */
