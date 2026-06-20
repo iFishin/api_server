@@ -101,6 +101,32 @@ export function useNavConfig() {
     group.tiles.splice(toIndex, 0, moved);
   }
 
+  // -------- 自由磁贴 CRUD --------
+
+  function addFreeTile(tile: Omit<AppTile, 'id'>, position: { x: number; y: number }): AppTile {
+    const newTile: AppTile = { ...tile, id: generateId(), position };
+    if (!config.value.freeTiles) config.value.freeTiles = [];
+    config.value.freeTiles.push(newTile);
+    return newTile;
+  }
+
+  function updateFreeTile(tileId: string, patch: Partial<Omit<AppTile, 'id'>>): void {
+    if (!config.value.freeTiles) return;
+    const tile = config.value.freeTiles.find((t) => t.id === tileId);
+    if (tile) Object.assign(tile, patch);
+  }
+
+  function removeFreeTile(tileId: string): void {
+    if (!config.value.freeTiles) return;
+    config.value.freeTiles = config.value.freeTiles.filter((t) => t.id !== tileId);
+  }
+
+  function moveFreeTile(tileId: string, position: { x: number; y: number }): void {
+    if (!config.value.freeTiles) return;
+    const tile = config.value.freeTiles.find((t) => t.id === tileId);
+    if (tile) tile.position = position;
+  }
+
   // -------- 导入 / 导出 / 重置 --------
 
   function exportConfig(): void {
@@ -149,6 +175,12 @@ export function useNavConfig() {
     updateTile,
     removeTile,
     moveTile,
+
+    // free tiles
+    addFreeTile,
+    updateFreeTile,
+    removeFreeTile,
+    moveFreeTile,
 
     // io
     exportConfig,

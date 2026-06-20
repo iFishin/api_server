@@ -15,6 +15,14 @@
         }"
         :title="`${g.name} (${g.tiles.length}项)`"
       ></div>
+      <!-- 自由磁贴缩略 -->
+      <div
+        v-for="t in freeTiles ?? []"
+        :key="t.id"
+        class="mini-dot mini-free-dot"
+        :style="freeTileStyle(t)"
+        :title="t.title"
+      ></div>
       <!-- 视口指示器 -->
       <div class="mini-viewport" :style="viewportStyle"></div>
       <!-- 中心点 -->
@@ -28,10 +36,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { NavGroup } from '@/types/nav-config';
+import type { NavGroup, AppTile } from '@/types/nav-config';
 
 const props = defineProps<{
   groups: NavGroup[];
+  freeTiles?: AppTile[];
   panX: number;
   panY: number;
   scale: number;
@@ -51,11 +60,17 @@ const MAP_H = 120;
 const bounds = computed(() => {
   let minX = Infinity, maxX = -Infinity;
   let minY = Infinity, maxY = -Infinity;
-  props.groups.forEach((g) => {
-    if (g.position.x < minX) minX = g.position.x;
-    if (g.position.x > maxX) maxX = g.position.x;
-    if (g.position.y < minY) minY = g.position.y;
-    if (g.position.y > maxY) maxY = g.position.y;
+
+  function extend(x: number, y: number) {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+
+  props.groups.forEach((g) => extend(g.position.x, g.position.y));
+  (props.freeTiles ?? []).forEach((t) => {
+    if (t.position) extend(t.position.x, t.position.y);
   });
   // 处理空的情况
   if (!isFinite(minX)) {
@@ -75,6 +90,16 @@ function dotX(g: NavGroup): number {
 }
 function dotY(g: NavGroup): number {
   return ((g.position.y - bounds.value.minY) / bounds.value.height) * 100;
+}
+
+function freeTileStyle(t: AppTile): Record<string, string> {
+  if (!t.position) return { display: 'none' };
+  return {
+    left: ((t.position.x - bounds.value.minX) / bounds.value.width) * 100 + '%',
+    top: ((t.position.y - bounds.value.minY) / bounds.value.height) * 100 + '%',
+    backgroundColor: t.color,
+    transform: 'translate(-50%, -50%)',
+  };
 }
 
 // 视口映射到小地图
@@ -147,6 +172,13 @@ function handleClick(e: MouseEvent) {
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.5);
   box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+}
+
+/* 自由磁贴点（更小） */
+.mini-free-dot {
+  width: 4px;
+  height: 4px;
+  border-width: 0;
 }
 
 /* 视口 */

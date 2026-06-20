@@ -18,6 +18,8 @@ export interface AppTile {
   imageUrl?: string;
   color: string;
   size: TileSize;
+  // 自由磁贴：不归属任何分组，直接在画布上定位
+  position?: { x: number; y: number };
 }
 
 export interface NavGroup {
@@ -33,6 +35,7 @@ export interface NavGroup {
 export interface NavConfig {
   version: number;
   groups: NavGroup[];
+  freeTiles?: AppTile[];    // 不归属分组的自由磁贴
   createdAt: number;
   updatedAt: number;
 }
@@ -47,6 +50,7 @@ export function createEmptyConfig(): NavConfig {
   return {
     version: 1,
     groups: [],
+    freeTiles: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
@@ -56,6 +60,7 @@ export function createEmptyConfig(): NavConfig {
 export function createDefaultConfig(): NavConfig {
   return {
     version: 1,
+    freeTiles: [],
     groups: [
       {
         id: generateId(),
