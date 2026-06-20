@@ -53,3 +53,7 @@ src/router/*.js
 src/store/*.js
 src/utils/*.js
 !src/main.js
+
+# Compiled JS output (from server tsconfig)
+server/**/*.js
+server/**/*.js.map
