@@ -14,7 +14,6 @@
     "test:performance": "./scripts/testing/test-performance.sh",
     "test:cleanup": "./scripts/testing/test-cleanup.sh",
     "test:menu": "./scripts/testing/test-menu.sh",
-    "test:legacy": "ts-node -r tsconfig-paths/register -P server/tsconfig.json server/tests/main.ts",
     "dev": "concurrently \"vite\" \"ts-node -r tsconfig-paths/register -P server/tsconfig.json server/server.ts\"",
     "build": "node scripts/utils/build.js",
     "build:frontend": "vite build",
