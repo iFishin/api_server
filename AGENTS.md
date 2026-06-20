@@ -6,7 +6,7 @@
 
 ### 🏗️ 核心架构
 - **前端**: Vue 3 + TypeScript + Vite + Router
-- **后端**: Express + TypeScript + SQLite + WebDAV
+- **后端**: Express + TypeScript + PostgreSQL + WebDAV
 - **构建**: Vite + TypeScript Compiler + 自定义构建脚本
 - **部署**: Docker + Nginx + PM2 + Shell Scripts
 - **测试**: Vitest + Coverage + Performance Testing
@@ -28,7 +28,7 @@
 - 使用 ESM 模块系统 (前端) 和 CommonJS (后端)
 - 前端采用 Vue 3 Composition API
 - 后端使用 Express 中间件架构
-- 数据库使用 SQLite 轻量级方案
+- 数据库使用 PostgreSQL 关系型数据库
 
 ### 文件组织
 
@@ -62,7 +62,7 @@
   "runtime": "Node.js 18+",
   "framework": "Express 4.21.2",
   "language": "TypeScript 5.7.3",
-  "database": "SQLite3 5.1.7",
+  "database": "PostgreSQL 8.16.3",
   "auth": "自定义认证",
   "file": "WebDAV + Multer",
   "security": "Helmet + CORS"
@@ -168,7 +168,6 @@ api_server/
 │       └── maintenance.html      # 维护页面模板
 │
 └── 🗃️ 数据文件
-    ├── database.db             # SQLite 数据库
     ├── dicts/                  # 字典文件
     ├── logs/                   # 日志文件
     └── temps/                  # 临时文件
@@ -190,7 +189,7 @@ api_server/
 ### 2. 后端 API
 - **RESTful API**: 标准的 REST 接口设计
 - **文件管理**: WebDAV 协议支持
-- **数据库操作**: SQLite 轻量级数据库
+- **数据库操作**: PostgreSQL 关系型数据库
 - **文件上传**: Multer 文件处理
 - **安全防护**: Helmet + CORS 安全中间件
 - **日志记录**: Morgan 访问日志
@@ -342,11 +341,6 @@ npm run test:preview    # 测试预览构建结果
 ---
 
 ## 🗄️ 数据库结构
-
-### SQLite 数据库
-- **文件位置**: `database.db`
-- **类型**: SQLite3 轻量级数据库
-- **用途**: 用户数据、配置信息、日志记录
 
 ### 数据字典
 - **位置**: `dicts/` 目录

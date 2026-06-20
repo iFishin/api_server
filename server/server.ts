@@ -1,10 +1,11 @@
 const app = require('./app');
 import dotenv from 'dotenv';
-import { openDb } from './db';
 import { testConnection } from './config/postgres';
+import { PostgresService } from './services/postgresService';
 import https from 'https';
 import fs from 'fs';
 import path from 'path';
+import { mqttService } from './services/mqttService'
 
 // 加载环境变量
 dotenv.config();
@@ -23,19 +24,22 @@ const SSL_KEY = path.join(certsDir, 'server.key');
 const SSL_CERT = path.join(certsDir, 'server.crt');
 
 async function initDb() {
-    // 初始化 SQLite
-    const db = await openDb();
-    await db.exec(`
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT NOT NULL UNIQUE
-        )
-    `);
-    console.log('✅ SQLite database initialized');
-    
     // 测试 PostgreSQL 连接
-    await testConnection();
+    const isConnected = await testConnection();
+    
+    if (isConnected) {
+        // 初始化 PostgreSQL 数据库表
+        const postgresService = new PostgresService();
+        const result = await postgresService.initDatabase();
+        
+        if (result.success) {
+            console.log('✅ PostgreSQL database initialized');
+        } else {
+            console.error('❌ PostgreSQL database initialization failed:', result.message);
+        }
+    } else {
+        console.warn('⚠️  PostgreSQL connection failed, some features may not work');
+    }
 }
 
 // 启动服务器
@@ -51,7 +55,7 @@ async function startServer() {
             hasCert = true;
         } catch {}
 
-        if (hasCert && isProduction) {
+    if (hasCert && isProduction) {
             // 生产环境：HTTPS + HTTP (都提供完整服务)
             const options = {
                 key: fs.readFileSync(SSL_KEY),
@@ -62,9 +66,16 @@ async function startServer() {
                 console.log(`🔒 HTTPS Server is running on https://0.0.0.0:${HTTPS_PORT}`);
             });
             // HTTP 服务器（提供完整服务，便于 Nginx 代理）
-            app.listen(HTTP_PORT, '0.0.0.0', () => {
+            app.listen(HTTP_PORT, '0.0.0.0', async () => {
                 console.log(`🌐 HTTP Server is running on http://0.0.0.0:${HTTP_PORT}`);
                 console.log(`💡 Production mode: Both HTTP and HTTPS available`);
+                // 启动 MQTT Broker
+                try {
+                    await mqttService.start()
+                    console.log('✅ MQTT broker started from server startup')
+                } catch (err) {
+                    console.error('❌ Failed to start MQTT broker during server startup:', err)
+                }
             });
         } else if (hasCert && !isProduction) {
             // 开发环境：同时运行 HTTP 和 HTTPS
@@ -77,15 +88,29 @@ async function startServer() {
                 console.log(`🔒 HTTPS Server is running on https://0.0.0.0:${HTTPS_PORT}`);
             });
             // HTTP 服务器（直接提供服务，不重定向）
-            app.listen(HTTP_PORT, '0.0.0.0', () => {
+            app.listen(HTTP_PORT, '0.0.0.0', async () => {
                 console.log(`🌐 HTTP Server is running on http://0.0.0.0:${HTTP_PORT}`);
                 console.log(`💡 Development mode: Both HTTP and HTTPS available`);
+                // 启动 MQTT Broker
+                try {
+                    await mqttService.start()
+                    console.log('✅ MQTT broker started from server startup')
+                } catch (err) {
+                    console.error('❌ Failed to start MQTT broker during server startup:', err)
+                }
             });
         } else {
             // 没有证书：仅 HTTP 服务器
-            app.listen(HTTP_PORT, '0.0.0.0', () => {
+            app.listen(HTTP_PORT, '0.0.0.0', async () => {
                 console.log(`🌐 HTTP Server is running on http://0.0.0.0:${HTTP_PORT}`);
                 console.log(`💡 Environment: ${isProduction ? 'production' : 'development'}`);
+                // 启动 MQTT Broker
+                try {
+                    await mqttService.start()
+                    console.log('✅ MQTT broker started from server startup')
+                } catch (err) {
+                    console.error('❌ Failed to start MQTT broker during server startup:', err)
+                }
             });
         }
     } catch (err) {
@@ -96,3 +121,18 @@ async function startServer() {
 
 // 启动应用
 startServer();
+
+// Graceful shutdown for MQTT broker on process exit
+function handleShutdown(signal: string) {
+    console.log(`Received ${signal}, shutting down...`)
+    mqttService.stop().then(() => {
+        console.log('MQTT broker stopped')
+        process.exit(0)
+    }).catch(err => {
+        console.error('Error stopping MQTT broker:', err)
+        process.exit(1)
+    })
+}
+
+process.on('SIGINT', () => handleShutdown('SIGINT'))
+process.on('SIGTERM', () => handleShutdown('SIGTERM'))

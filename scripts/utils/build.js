@@ -49,11 +49,6 @@ try {
     '.env.example'
   ];
   
-  // 复制数据库文件（如果存在）
-  if (fs.existsSync('database.db')) {
-    filesToCopy.push('database.db');
-  }
-  
   filesToCopy.forEach(file => {
     if (fs.existsSync(file)) {
       fs.copyFileSync(file, `dist/${file}`);
