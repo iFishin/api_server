@@ -1,6 +1,6 @@
 <template>
   <div class="infinite-nav-container" ref="containerRef">
-    <!-- 画布（整体平移 + 缩放） -->
+    <!-- 画布 -->
     <div
       class="infinite-canvas"
       :style="canvasStyle"
@@ -14,30 +14,26 @@
       @touchend="handleTouchEnd"
       @wheel.prevent="handleWheel"
     >
-      <!-- 坐标系 -->
-      <div v-if="showCoord" class="coord-overlay">
-        <div class="axis axis-x"></div>
-        <div class="axis axis-y"></div>
-        <div class="axis-label label-origin">O (0,0)</div>
-        <div class="axis-label label-x">X</div>
-        <div class="axis-label label-y">Y</div>
-      </div>
-
-      <!-- 分组（只做位置偏移，缩放由父级 canvas 控制） -->
+      <!-- 分组 -->
       <NavGroup
         v-for="g in config.groups"
         :key="g.id"
         :group="g"
         :selected="selectedGroupId === g.id"
+        :edit-mode="editMode"
         :canvas-offset="{ x: panX, y: panY }"
         @context-menu="handleGroupContextMenu"
         @drag-start="handleGroupDragStart"
         @add-tile="(grp) => openTileEditor(grp)"
+        @edit="openGroupEditor"
+        @delete="removeGroup"
+        @edit-tile="({ group: grp, tile }) => openTileEditor(grp, tile)"
+        @delete-tile="({ group: grp, tile }) => removeTile(grp.id, tile.id)"
         @resize-tile="({ group: grp, tile, size }) => updateTile(grp.id, tile.id, { size })"
         @reorder="handleTileReorder"
       />
 
-      <!-- 自由磁贴（只做位置偏移） -->
+      <!-- 自由磁贴 -->
       <div
         v-for="tile in freeTiles"
         :key="tile.id"
@@ -47,15 +43,18 @@
       >
         <AppTile
           :tile="tile"
+          :edit-mode="editMode"
           :draggable="true"
           :resizable="true"
-          @drag-start="(t, e) => handleFreeTileDragStart(t, e)"
-          @resize="(t, s) => updateFreeTile(t.id, { size: s })"
-          @context-menu="(t, e) => showContextMenu(e, [
+          @drag-start="(t: any, e: MouseEvent) => handleFreeTileDragStart(t, e)"
+          @resize="(t: any, s: any) => updateFreeTile(t.id, { size: s })"
+          @edit="openFreeTileEditor"
+          @delete="(t: any) => removeFreeTile(t.id)"
+          @context-menu="editMode ? (t: any, e: MouseEvent) => showContextMenu(e, [
             { label: '编辑', icon: 'fas fa-pen', action: () => openFreeTileEditor(t) },
             { label: '删除', icon: 'fas fa-trash', danger: true, action: () => removeFreeTile(t.id) },
-            { label: '调整大小', icon: 'fas fa-expand', action: () => { const sizes = ['small','medium','large']; const cur = sizes.indexOf(t.size); updateFreeTile(t.id, { size: sizes[(cur+1)%3] as any }); } },
-          ])"
+            { label: '调整大小', icon: 'fas fa-expand', action: () => { const s = ['small','medium','large']; const c = s.indexOf(t.size); updateFreeTile(t.id, { size: s[(c+1)%3] as any }); } },
+          ]) : undefined"
         />
       </div>
     </div>
@@ -64,34 +63,35 @@
     <div class="floating-ui">
       <div class="info-panel">
         <div class="coord-line">X {{ Math.round(-panX) }} / Y {{ Math.round(-panY) }}</div>
-        <div class="coord-line dim">缩放 {{ (zoomLevel * 100).toFixed(0) }}% / {{ config.groups.length + (freeTiles?.length || 0) }} 项</div>
+        <div class="coord-line dim">缩放 {{ (zoom * 100).toFixed(0) }}% / {{ config.groups.length + (freeTiles?.length || 0) }} 项</div>
         <div class="status-line">
           <span v-if="isDragging" class="tag drag">✦ 拖拽</span>
-          <span v-else-if="isGroupDragging" class="tag drag">✦ 移动分组</span>
           <span v-else-if="isInertia" class="tag inert">◈ 惯性</span>
           <span v-else class="tag idle">● 就绪</span>
         </div>
       </div>
 
       <div class="toolbar">
-        <button class="tool-btn" title="添加分组" @click="openGroupEditor()"><i class="fas fa-layer-group"></i><span>分组</span></button>
-        <button class="tool-btn" title="添加应用" @click="openFreeTileCreator()"><i class="fas fa-plus-square"></i><span>应用</span></button>
+        <button class="tool-btn" :class="{ active: editMode }" title="编辑布局" @click="editMode = !editMode">
+          <i class="fas fa-pencil-alt"></i><span>编辑布局</span>
+        </button>
+
+        <template v-if="editMode">
+          <button class="tool-btn" title="添加分组" @click="openGroupEditor()"><i class="fas fa-layer-group"></i><span>添加分组</span></button>
+          <button class="tool-btn" title="添加应用" @click="openFreeTileCreator()"><i class="fas fa-plus-square"></i><span>添加应用</span></button>
+          <div class="tool-divider"></div>
+        </template>
+
         <button class="tool-btn" title="回到中心" @click="resetView"><i class="fas fa-home"></i><span>归位</span></button>
-        <button class="tool-btn" :class="{ active: gridMode !== 'off' }" @click="cycleGrid"><i class="fas fa-th"></i><span>网格</span></button>
-        <button class="tool-btn" :class="{ active: showCoord }" @click="showCoord = !showCoord"><i class="fas fa-crosshairs"></i><span>坐标</span></button>
-        <button class="tool-btn" :class="{ active: showMiniMap }" @click="showMiniMap = !showMiniMap"><i class="fas fa-map"></i><span>地图</span></button>
         <div class="tool-divider"></div>
-        <button class="tool-btn" title="导入" @click="triggerImport"><i class="fas fa-file-import"></i></button>
-        <button class="tool-btn" title="导出" @click="exportConfig"><i class="fas fa-file-export"></i></button>
+        <button class="tool-btn" title="导出配置" @click="exportConfig"><i class="fas fa-file-export"></i></button>
+        <button class="tool-btn" title="导入配置" @click="triggerImport"><i class="fas fa-file-import"></i></button>
         <button class="tool-btn" title="重置默认" @click="resetToDefault"><i class="fas fa-undo-alt"></i></button>
       </div>
     </div>
 
-    <!-- 小地图 -->
-    <MiniMap v-if="showMiniMap" :groups="config.groups" :free-tiles="freeTiles" :pan-x="panX" :pan-y="panY" :scale="zoomLevel" :viewport-width="viewport.width" :viewport-height="viewport.height" @navigate="navigateToPosition" />
-
     <!-- 右键菜单 -->
-    <ContextMenu :visible="ctxVisible" :x="ctxX" :y="ctxY" :items="ctxItems" @close="ctxVisible = false" />
+    <ContextMenu v-if="editMode" :visible="ctxVisible" :x="ctxX" :y="ctxY" :items="ctxItems" @close="ctxVisible = false" />
 
     <!-- 编辑弹窗 -->
     <EditorModal :visible="modalVisible" :is-group="modalIsGroup" :edit-group="editingGroup" :edit-tile="editingTile" @close="closeModal" @save="handleModalSave" />
@@ -107,33 +107,35 @@ import { useNavConfig } from '@/composables/useNavConfig';
 import NavGroup from '@/components/infinite/NavGroup.vue';
 import AppTile from '@/components/infinite/AppTile.vue';
 import EditorModal from '@/components/infinite/EditorModal.vue';
-import MiniMap from '@/components/infinite/MiniMap.vue';
 import ContextMenu from '@/components/infinite/ContextMenu.vue';
 import type { ContextMenuItem } from '@/components/infinite/ContextMenu.vue';
 
-// ---------- composable ----------
-const {
-  config, addGroup, updateGroup, removeGroup,
-  addTile, updateTile, removeTile, moveTile,
-  addFreeTile, updateFreeTile, removeFreeTile, moveFreeTile,
-  exportConfig, loadFromFile, resetToDefault,
-} = useNavConfig();
+const { config, addGroup, updateGroup, removeGroup, addTile, updateTile, removeTile, moveTile, addFreeTile, updateFreeTile, removeFreeTile, exportConfig, loadFromFile, resetToDefault } = useNavConfig();
 const freeTiles = computed(() => config.value.freeTiles ?? []);
 
-// ---------- DOM ----------
+// DOM
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const containerRef = ref<HTMLElement | null>(null);
 
-// ---------- viewport ----------
-const viewport = reactive({ width: window.innerWidth, height: window.innerHeight });
-function updateViewport() { viewport.width = window.innerWidth; viewport.height = window.innerHeight; }
-
-// ========== PAN ==========
+// ========== PAN (single source: refs, NO plain let vars) ==========
 const panX = ref(0);
 const panY = ref(0);
-let ix = 0, iy = 0;
 const isDragging = ref(false);
 let lastX = 0, lastY = 0;
+
+// Drag RAF throttling — batch reactive updates to display frame rate
+let rafPending = false;
+function syncPan() {
+  if (rafPending) return;
+  rafPending = true;
+  requestAnimationFrame(() => {
+    // panX / panY are already updated by mousemove via ix/iy
+    rafPending = false;
+  });
+}
+
+// Internal fast vars (not reactive) updated per mousemove, synced to refs via RAF
+let ix = 0, iy = 0;
 
 // ========== INERTIA ==========
 const isInertia = ref(false);
@@ -153,23 +155,24 @@ function startInertia(vx: number, vy: number) {
   inertiaRaf = requestAnimationFrame(tick);
 }
 
-// ========== ZOOM (canvas-level) ==========
-const zoomLevel = ref(1);
+// ========== ZOOM ==========
+const zoom = ref(1);
 const MIN_ZOOM = 0.3, MAX_ZOOM = 3;
 
-// 画布级变换：同时包含平移和缩放
+// ========== CANVAS STYLE (computed uses only reactive refs — FIXES ISSUE 1) ==========
 const canvasStyle = computed(() => {
+  const z = zoom.value;
   let bg = 'none', bgSize = 'auto';
   if (gridMode.value === 'dots') {
     bg = 'radial-gradient(circle, rgba(52,152,219,0.3) 1.5px, transparent 1.5px)';
-    bgSize = `${40 * zoomLevel.value}px ${40 * zoomLevel.value}px`;
+    bgSize = `${40 * z}px ${40 * z}px`;
   } else if (gridMode.value === 'lines') {
     bg = 'linear-gradient(rgba(52,152,219,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(52,152,219,0.12) 1px, transparent 1px)';
-    bgSize = `${50 * zoomLevel.value}px ${50 * zoomLevel.value}px, ${50 * zoomLevel.value}px ${50 * zoomLevel.value}px`;
+    bgSize = `${50 * z}px ${50 * z}px, ${50 * z}px ${50 * z}px`;
   }
   return {
     cursor: isDragging.value ? 'grabbing' : 'grab',
-    transform: `translate3d(${ix}px, ${iy}px, 0) scale(${zoomLevel.value})`,
+    transform: `translate3d(${panX.value}px, ${panY.value}px, 0) scale(${z})`,
     transformOrigin: '0 0',
     backgroundImage: bg,
     backgroundSize: bgSize as string,
@@ -179,20 +182,46 @@ const canvasStyle = computed(() => {
   };
 });
 
-// ========== DRAG — 全局，不阻挡 ==========
+// ========== EDIT MODE ==========
+const editMode = ref(false);
+
+// ========== GRID ==========
+const gridMode = ref<'off' | 'dots' | 'lines'>('dots');
+
+// ========== CONTEXT MENU ==========
+const ctxVisible = ref(false);
+const ctxX = ref(0);
+const ctxY = ref(0);
+const ctxItems = ref<ContextMenuItem[]>([]);
+function showContextMenu(e: MouseEvent, items: ContextMenuItem[]) {
+  if (!editMode.value) return;
+  ctxX.value = e.clientX; ctxY.value = e.clientY; ctxItems.value = items; ctxVisible.value = true;
+}
+
+// ========== SELECTION ==========
+const selectedGroupId = ref<string | null>(null);
+
+// ========== DRAG — 全局不阻挡 ==========
+let dragHistory: { t: number; x: number; y: number }[] = [];
+
 function canDragOnTarget(el: EventTarget | null): boolean {
   if (!el) return true;
   const t = el as HTMLElement;
-  // 功能按钮和菜单 → 不拖动画布
-  if (t.closest('.tool-btn') || t.closest('.ctx-menu') || t.closest('.ctx-overlay') || t.closest('.modal-overlay')) return false;
-  // 分组标题栏 → 不拖动画布（交给分组拖拽）
+  // 功能按钮/菜单/弹窗 → 不拖动画布
+  if (t.closest('.tool-btn') || t.closest('.ctx-menu') || t.closest('.modal-overlay')) return false;
+  // 编辑模式下的排序手柄 → 拖拽排序，不走画布
+  if (t.closest('.tile-drag-handle')) return false;
+  // 编辑模式下的编辑按钮 → 不走画布
+  if (t.closest('.tile-edit-btn') || t.closest('.tile-del-btn')) return false;
+  // 分组标题栏 → 不走画布（交给分组拖拽）
   if (t.closest('.group-header')) return false;
+  // 分组标题栏编辑按钮 → 不走画布
+  if (t.closest('.g-btn')) return false;
   return true;
 }
 
 function handleMouseDown(e: MouseEvent) {
   if (e.button !== 0 && e.button !== 2) return;
-  // 只在 canvas 直接点或分组/磁贴内容区触发画布拖拽
   if (!canDragOnTarget(e.target)) return;
   isDragging.value = true;
   lastX = e.clientX; lastY = e.clientY;
@@ -201,16 +230,21 @@ function handleMouseDown(e: MouseEvent) {
   selectedGroupId.value = null;
 }
 
-let dragHistory: { t: number; x: number; y: number }[] = [];
-
 function handleMouseMove(e: MouseEvent) {
   if (!isDragging.value) return;
   const dx = e.clientX - lastX, dy = e.clientY - lastY;
   ix += dx; iy += dy;
-  panX.value = ix; panY.value = iy;
   lastX = e.clientX; lastY = e.clientY;
   dragHistory.push({ t: performance.now(), x: e.clientX, y: e.clientY });
   if (dragHistory.length > 5) dragHistory.shift();
+  // RAF-throttled sync to reactive refs
+  if (!rafPending) {
+    rafPending = true;
+    requestAnimationFrame(() => {
+      panX.value = ix; panY.value = iy;
+      rafPending = false;
+    });
+  }
 }
 
 function handleMouseUp() {
@@ -228,17 +262,13 @@ function handleMouseUp() {
     }
   }
   isDragging.value = false;
-  freeTileDragId.value = null;
   dragHistory = [];
 }
 
 // ========== TOUCH ==========
 function handleTouchStart(e: TouchEvent) {
-  if (e.touches.length !== 1) return;
-  if (!canDragOnTarget(e.target)) return;
-  isDragging.value = true;
-  lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
-  stopInertia();
+  if (e.touches.length !== 1 || !canDragOnTarget(e.target)) return;
+  isDragging.value = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; stopInertia();
 }
 function handleTouchMove(e: TouchEvent) {
   if (!isDragging.value || e.touches.length !== 1) return;
@@ -252,25 +282,55 @@ function handleTouchEnd() { isDragging.value = false; }
 function handleWheel(e: WheelEvent) {
   if (e.shiftKey) { ix -= e.deltaY * 0.8; panX.value = ix; return; }
   if (e.ctrlKey || e.metaKey) { iy -= e.deltaY * 0.8; panY.value = iy; return; }
-  const oldScale = zoomLevel.value;
-  const factor = e.deltaY > 0 ? 0.9 : 1 / 0.9;
-  zoomLevel.value = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, oldScale * factor));
+  const old = zoom.value;
+  zoom.value = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, old * (e.deltaY > 0 ? 0.9 : 1 / 0.9)));
 }
 
-// ========== GROUP DRAG ==========
-const isGroupDragging = ref(false);
+// ========== GROUP DRAG + COLLISION AVOIDANCE ==========
+function getGroupRect(g: NavGroupType) {
+  // 估算分组尺寸（px），用于碰撞检测
+  const tileCount = g.tiles.length;
+  const cols = Math.min(tileCount, 4);
+  const rows = Math.ceil(tileCount / 4);
+  const tileW = 130, tileH = 120, gap = 10;
+  const w = Math.max(200, cols * tileW + (cols - 1) * gap + 32);
+  const h = 60 + rows * tileH + (rows - 1) * gap + 32;
+  return { x: g.position.x, y: g.position.y, w, h };
+}
+
+function rectsOverlap(a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }, padding = 20) {
+  return !(a.x + a.w + padding < b.x || b.x + b.w + padding < a.x || a.y + a.h + padding < b.y || b.y + b.h + padding < a.y);
+}
+
 function handleGroupDragStart(group: NavGroupType, e: MouseEvent) {
-  isGroupDragging.value = true;
+  if (!editMode.value) return;
   let ox = e.clientX, oy = e.clientY;
+  const others = config.value.groups.filter(g => g.id !== group.id);
   selectedGroupId.value = group.id;
   function onMove(ev: MouseEvent) {
-    const dx = (ev.clientX - ox) / zoomLevel.value;
-    const dy = (ev.clientY - oy) / zoomLevel.value;
+    const dx = (ev.clientX - ox) / zoom.value;
+    const dy = (ev.clientY - oy) / zoom.value;
     ox = ev.clientX; oy = ev.clientY;
-    const g = config.groups.find(gg => gg.id === group.id);
-    if (g) { g.position.x += dx; g.position.y += dy; }
+    group.position.x += dx; group.position.y += dy;
+    // 碰撞检测：推开重叠的分组
+    const rectA = getGroupRect(group);
+    for (const other of others) {
+      const rectB = getGroupRect(other);
+      if (rectsOverlap(rectA, rectB)) {
+        // 计算推开方向
+        const overlapX = Math.min(rectA.x + rectA.w - rectB.x, rectB.x + rectB.w - rectA.x);
+        const overlapY = Math.min(rectA.y + rectA.h - rectB.y, rectB.y + rectB.h - rectA.y);
+        if (overlapX < overlapY) {
+          group.position.x += (rectA.x < rectB.x ? -1 : 1) * overlapX * 0.5;
+          other.position.x += (rectA.x < rectB.x ? 1 : -1) * overlapX * 0.5;
+        } else {
+          group.position.y += (rectA.y < rectB.y ? -1 : 1) * overlapY * 0.5;
+          other.position.y += (rectA.y < rectB.y ? 1 : -1) * overlapY * 0.5;
+        }
+      }
+    }
   }
-  function onUp() { isGroupDragging.value = false; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
+  function onUp() { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
   document.addEventListener('mousemove', onMove);
   document.addEventListener('mouseup', onUp);
 }
@@ -278,12 +338,12 @@ function handleGroupDragStart(group: NavGroupType, e: MouseEvent) {
 // ========== FREE TILE DRAG ==========
 const freeTileDragId = ref<string | null>(null);
 function handleFreeTileDragStart(tile: AppTileType, e: MouseEvent) {
-  if (e.button !== 0) return;
+  if (e.button !== 0 || !editMode.value) return;
   freeTileDragId.value = tile.id;
   let ox = e.clientX, oy = e.clientY;
   function onMove(ev: MouseEvent) {
-    const dx = (ev.clientX - ox) / zoomLevel.value;
-    const dy = (ev.clientY - oy) / zoomLevel.value;
+    const dx = (ev.clientX - ox) / zoom.value;
+    const dy = (ev.clientY - oy) / zoom.value;
     ox = ev.clientX; oy = ev.clientY;
     if (tile.position) { tile.position.x += dx; tile.position.y += dy; }
   }
@@ -292,49 +352,20 @@ function handleFreeTileDragStart(tile: AppTileType, e: MouseEvent) {
   document.addEventListener('mouseup', onUp);
 }
 
+function freeTileStyle(tile: AppTileType): Record<string, string> {
+  if (!tile.position) return { display: 'none' };
+  return { position: 'absolute', left: `${tile.position.x}px`, top: `${tile.position.y}px`, zIndex: freeTileDragId.value === tile.id ? '100' : '2' };
+}
+
 // ========== TILE REORDER ==========
 function handleTileReorder(payload: { groupId: string; fromIndex: number; toIndex: number }) {
   moveTile(payload.groupId, payload.fromIndex, payload.toIndex);
 }
 
-// ========== FREE TILE STYLE ==========
-function freeTileStyle(tile: AppTileType): Record<string, string> {
-  if (!tile.position) return { display: 'none' };
-  return {
-    position: 'absolute',
-    left: `${tile.position.x}px`,
-    top: `${tile.position.y}px`,
-    zIndex: freeTileDragId.value === tile.id ? '100' : '2',
-  };
-}
-
-// ========== GRID ==========
-const gridMode = ref<'off' | 'dots' | 'lines'>('dots');
-function cycleGrid() { gridMode.value = (['off', 'dots', 'lines'] as const)[(['off', 'dots', 'lines'].indexOf(gridMode.value) + 1) % 3]; }
-
-// ========== OVERLAYS ==========
-const showMiniMap = ref(false);
-const showCoord = ref(false);
-
-// ========== SELECTION ==========
-const selectedGroupId = ref<string | null>(null);
-
-// ========== CONTEXT MENU ==========
-const ctxVisible = ref(false);
-const ctxX = ref(0);
-const ctxY = ref(0);
-const ctxItems = ref<ContextMenuItem[]>([]);
-
-function showContextMenu(e: MouseEvent, items: ContextMenuItem[]) {
-  ctxX.value = e.clientX;
-  ctxY.value = e.clientY;
-  ctxItems.value = items;
-  ctxVisible.value = true;
-}
-
+// ========== CONTEXT MENU HANDLERS ==========
 function handleCanvasContext(e: MouseEvent) {
-  // 不在分组/磁贴上点击 → 画布空白区域
-  if ((e.target as HTMLElement).closest('.nav-group') || (e.target as HTMLElement).closest('.free-tile-wrapper') || (e.target as HTMLElement).closest('.coord-overlay')) return;
+  if (!editMode.value) return;
+  if ((e.target as HTMLElement).closest('.nav-group') || (e.target as HTMLElement).closest('.free-tile-wrapper')) return;
   showContextMenu(e, [
     { label: '添加分组', icon: 'fas fa-layer-group', action: () => openGroupEditor() },
     { label: '添加应用', icon: 'fas fa-plus-square', action: () => openFreeTileCreator() },
@@ -342,15 +373,14 @@ function handleCanvasContext(e: MouseEvent) {
 }
 
 function handleGroupContextMenu(group: NavGroupType, e: MouseEvent, tile?: any) {
+  if (!editMode.value) return;
   if (tile) {
-    // 右键磁贴
     showContextMenu(e, [
       { label: '编辑', icon: 'fas fa-pen', action: () => openTileEditor(group, tile) },
       { label: '删除', icon: 'fas fa-trash', danger: true, action: () => removeTile(group.id, tile.id) },
-      { label: '调整大小', icon: 'fas fa-expand', action: () => { const sizes = ['small','medium','large']; const cur = sizes.indexOf(tile.size); updateTile(group.id, tile.id, { size: sizes[(cur+1)%3] as any }); } },
+      { label: '调整大小', icon: 'fas fa-expand', action: () => { const s = ['small','medium','large']; const c = s.indexOf(tile.size); updateTile(group.id, tile.id, { size: s[(c+1)%3] as any }); } },
     ]);
   } else {
-    // 右键分组标题
     showContextMenu(e, [
       { label: '编辑分组', icon: 'fas fa-pen', action: () => openGroupEditor(group) },
       { label: '添加应用', icon: 'fas fa-plus-square', action: () => openTileEditor(group) },
@@ -367,26 +397,18 @@ const editingTile = ref<AppTileType | null>(null);
 let modalTargetGroupId: string | null = null;
 let modalIsNewFreeTile = false;
 
-function openGroupEditor(group?: NavGroupType) {
-  modalIsGroup.value = true; editingGroup.value = group ?? null; editingTile.value = null; modalTargetGroupId = null; modalIsNewFreeTile = false; modalVisible.value = true;
-}
-function openFreeTileCreator() {
-  modalIsGroup.value = false; editingGroup.value = null; editingTile.value = null; modalTargetGroupId = null; modalIsNewFreeTile = true; modalVisible.value = true;
-}
-function openFreeTileEditor(tile?: AppTileType) {
-  modalIsGroup.value = false; editingGroup.value = null; editingTile.value = tile ?? null; modalTargetGroupId = null; modalIsNewFreeTile = false; modalVisible.value = true;
-}
-function openTileEditor(group: NavGroupType, tile?: AppTileType) {
-  modalIsGroup.value = false; modalTargetGroupId = group.id; editingGroup.value = null; editingTile.value = tile ?? null; modalIsNewFreeTile = false; modalVisible.value = true;
-}
+function openGroupEditor(group?: NavGroupType) { modalIsGroup.value = true; editingGroup.value = group ?? null; editingTile.value = null; modalTargetGroupId = null; modalIsNewFreeTile = false; modalVisible.value = true; }
+function openFreeTileCreator() { modalIsGroup.value = false; editingGroup.value = null; editingTile.value = null; modalTargetGroupId = null; modalIsNewFreeTile = true; modalVisible.value = true; }
+function openFreeTileEditor(tile?: AppTileType) { modalIsGroup.value = false; editingGroup.value = null; editingTile.value = tile ?? null; modalTargetGroupId = null; modalIsNewFreeTile = false; modalVisible.value = true; }
+function openTileEditor(group: NavGroupType, tile?: AppTileType) { modalIsGroup.value = false; modalTargetGroupId = group.id; editingGroup.value = null; editingTile.value = tile ?? null; modalIsNewFreeTile = false; modalVisible.value = true; }
 function closeModal() { modalVisible.value = false; editingGroup.value = null; editingTile.value = null; }
 
 function handleModalSave(data: Record<string, any>) {
   if (modalIsGroup.value) {
     if (editingGroup.value) updateGroup(editingGroup.value.id, { name: data.name, description: data.description || '', icon: data.icon, color: data.color });
-    else addGroup({ name: data.name, description: data.description || '', position: { x: -ix + (Math.random() - 0.5) * 120 / zoomLevel.value, y: -iy + (Math.random() - 0.5) * 120 / zoomLevel.value }, icon: data.icon, color: data.color });
+    else addGroup({ name: data.name, description: data.description || '', position: { x: -ix + (Math.random() - 0.5) * 120 / zoom.value, y: -iy + (Math.random() - 0.5) * 120 / zoom.value }, icon: data.icon, color: data.color });
   } else if (modalIsNewFreeTile) {
-    addFreeTile({ title: data.title, description: data.description, url: data.url, route: data.route, icon: data.icon, iconType: data.iconType, color: data.color, size: data.size }, { x: -ix + (Math.random() - 0.5) * 200 / zoomLevel.value, y: -iy + (Math.random() - 0.5) * 150 / zoomLevel.value });
+    addFreeTile({ title: data.title, description: data.description, url: data.url, route: data.route, icon: data.icon, iconType: data.iconType, color: data.color, size: data.size }, { x: -ix + (Math.random() - 0.5) * 200 / zoom.value, y: -iy + (Math.random() - 0.5) * 150 / zoom.value });
   } else if (modalTargetGroupId) {
     if (editingTile.value) updateTile(modalTargetGroupId, editingTile.value.id, { title: data.title, description: data.description, url: data.url, route: data.route, icon: data.icon, iconType: data.iconType, color: data.color, size: data.size });
     else addTile(modalTargetGroupId, { title: data.title, description: data.description, url: data.url, route: data.route, icon: data.icon, iconType: data.iconType, color: data.color, size: data.size });
@@ -397,11 +419,10 @@ function handleModalSave(data: Record<string, any>) {
 }
 
 // ========== NAVIGATION ==========
-function resetView() { stopInertia(); zoomLevel.value = 1; animatePanTo(0, 0); }
-function navigateToPosition(x: number, y: number) { stopInertia(); animatePanTo(-x, -y); }
+function resetView() { stopInertia(); zoom.value = 1; animatePanTo(0, 0); }
 function animatePanTo(tx: number, ty: number) {
   const sx = ix, sy = iy, d = 400, t0 = performance.now();
-  function frame(t: number) { const p = Math.min((t - t0) / d, 1); const e = 1 - Math.pow(1 - p, 3); ix = sx + (tx - sx) * e; iy = sy + (ty - sy) * e; panX.value = ix; panY.value = iy; if (p < 1) requestAnimationFrame(frame); }
+  function frame(t: number) { const p = Math.min((t - t0) / d, 1); ix = sx + (tx - sx) * (1 - Math.pow(1 - p, 3)); iy = sy + (ty - sy) * (1 - Math.pow(1 - p, 3)); panX.value = ix; panY.value = iy; if (p < 1) requestAnimationFrame(frame); }
   requestAnimationFrame(frame);
 }
 
@@ -411,7 +432,7 @@ function handleFileImport(e: Event) { const input = e.target as HTMLInputElement
 
 // ========== KEYBOARD ==========
 function handleKeyDown(e: KeyboardEvent) {
-  const step = 50 / zoomLevel.value;
+  const step = 50 / zoom.value;
   switch (e.key) {
     case 'ArrowLeft': ix += step; panX.value = ix; e.preventDefault(); break;
     case 'ArrowRight': ix -= step; panX.value = ix; e.preventDefault(); break;
@@ -424,40 +445,17 @@ function handleKeyDown(e: KeyboardEvent) {
 }
 
 // ========== LIFECYCLE ==========
-onMounted(() => { document.addEventListener('keydown', handleKeyDown); window.addEventListener('resize', updateViewport); });
-onUnmounted(() => { document.removeEventListener('keydown', handleKeyDown); window.removeEventListener('resize', updateViewport); stopInertia(); });
-
-defineOptions({ name: 'InfiniteNavView' });
+onMounted(() => { document.addEventListener('keydown', handleKeyDown); });
+onUnmounted(() => { document.removeEventListener('keydown', handleKeyDown); stopInertia(); });
 </script>
 
 <style scoped>
 .infinite-nav-container {
-  position: relative;
-  width: 100vw; height: 100vh;
-  overflow: hidden;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e9edf5 100%);
-  user-select: none;
+  position: relative; width: 100vw; height: 100vh; overflow: hidden;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e9edf5 100%); user-select: none;
 }
+.infinite-canvas { will-change: transform; backface-visibility: hidden; }
 
-.infinite-canvas {
-  will-change: transform;
-  backface-visibility: hidden;
-}
-
-/* ---- 坐标系 ---- */
-.coord-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
-.axis { position: absolute; background: rgba(231, 76, 60, 0.5); }
-.axis-x { top: 50%; left: 0; width: 100%; height: 1px; }
-.axis-y { left: 50%; top: 0; width: 1px; height: 100%; }
-.axis-label { position: absolute; color: rgba(231, 76, 60, 0.6); font-size: 0.7rem; font-weight: 700; font-family: 'Courier New', monospace; }
-.label-origin { top: calc(50% + 6px); left: calc(50% + 6px); }
-.label-x { bottom: 8px; right: 12px; }
-.label-y { top: 12px; left: calc(50% + 6px); }
-
-/* ---- 自由磁贴包装 ---- */
-.free-tile-wrapper { position: absolute; z-index: 2; }
-
-/* ---- 浮动 UI ---- */
 .floating-ui { position: absolute; top: 0; left: 0; right: 0; pointer-events: none; z-index: 10; }
 
 .info-panel {
@@ -481,7 +479,7 @@ defineOptions({ name: 'InfiniteNavView' });
 }
 .tool-btn {
   display: flex; align-items: center; gap: 8px;
-  padding: 7px 12px; border: none; border-radius: 10px;
+  padding: 8px 14px; border: none; border-radius: 10px;
   background: rgba(255, 255, 255, 0.85); cursor: pointer;
   font-size: 0.78rem; font-weight: 500; color: #2c3e50;
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -493,7 +491,7 @@ defineOptions({ name: 'InfiniteNavView' });
 .tool-btn.active { background: rgba(52, 152, 219, 0.85); color: white; box-shadow: 0 4px 14px rgba(52, 152, 219, 0.3); }
 .tool-btn i { width: 16px; text-align: center; font-size: 0.85rem; }
 .tool-btn span { white-space: nowrap; }
-.tool-divider { height: 1px; background: rgba(0, 0, 0, 0.08); margin: 2px 0; }
+.tool-divider { height: 1px; background: rgba(0, 0, 0, 0.08); margin: 3px 0; }
 
 @media (max-width: 768px) {
   .info-panel { font-size: 0.7rem; padding: 8px 10px; }
