@@ -121,7 +121,9 @@ const groupStyle = computed(() => {
 <style scoped>
 .nav-group {
   position: absolute;
-  background: rgba(255, 255, 255, 0.93);
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-radius: 20px; padding: 16px;
   min-width: 200px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);

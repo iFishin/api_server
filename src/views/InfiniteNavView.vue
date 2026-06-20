@@ -186,7 +186,7 @@ const canvasStyle = computed(() => {
 const editMode = ref(false);
 
 // ========== GRID ==========
-const gridMode = ref<'off' | 'dots' | 'lines'>('dots');
+const gridMode = ref<'off' | 'dots' | 'lines'>('off');
 
 // ========== CONTEXT MENU ==========
 const ctxVisible = ref(false);
@@ -492,7 +492,7 @@ onUnmounted(() => { document.removeEventListener('keydown', handleKeyDown); stop
 <style scoped>
 .infinite-nav-container {
   position: relative; width: 100vw; height: 100vh; overflow: hidden;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e9edf5 100%); user-select: none;
+  background: transparent;
 }
 .infinite-canvas { will-change: transform; backface-visibility: hidden; }
 
