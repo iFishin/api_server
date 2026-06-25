@@ -181,11 +181,16 @@ function checkDocker() {
     return false;
   }
 
-  const composeResult = runCommand('docker-compose --version');
+  const composeResult = runCommand('docker compose version');
   if (composeResult.success) {
     log(`✅ Docker Compose: ${composeResult.output}`, 'green');
   } else {
-    log('⚠️  Docker Compose 未安装', 'yellow');
+    const legacyComposeResult = runCommand('docker-compose --version');
+    if (legacyComposeResult.success) {
+      log(`✅ Docker Compose: ${legacyComposeResult.output}`, 'green');
+    } else {
+      log('⚠️  Docker Compose 未安装', 'yellow');
+    }
   }
 
   // 检查 Dockerfile
@@ -196,11 +201,17 @@ function checkDocker() {
     return false;
   }
 
-  // 检查 docker-compose.yml
-  if (fileExists('docker-compose.yml')) {
-    log('✅ docker-compose.yml 存在', 'green');
+  // 检查 Docker Compose 和 Nginx 配置
+  if (fileExists('config/docker-compose.yml')) {
+    log('✅ config/docker-compose.yml 存在', 'green');
   } else {
-    log('❌ docker-compose.yml 不存在', 'red');
+    log('❌ config/docker-compose.yml 不存在', 'red');
+  }
+
+  if (fileExists('config/nginx-docker.conf')) {
+    log('✅ config/nginx-docker.conf 存在', 'green');
+  } else {
+    log('❌ config/nginx-docker.conf 不存在', 'red');
   }
 
   return true;

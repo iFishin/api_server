@@ -59,13 +59,19 @@ npm run start:80    # 80端口 (需要sudo)
 ## 🐳 Docker 部署
 
 ```bash
-# 使用 Docker Compose
+# 使用 Docker Compose，本地通过 Nginx 访问 http://localhost
 npm run docker:compose
 
-# 或手动构建
+# 查看日志 / 停止服务
+npm run docker:logs
+npm run docker:down
+
+# 或仅运行 Node.js 应用容器，直连 http://localhost:3000
 npm run docker:build
 npm run docker:run
 ```
+
+Docker Compose 会启动两个容器：`api-server` 负责 Node.js/API/MQTT，`nginx` 负责本地 80 端口反向代理。Docker 专用 Nginx 配置位于 `config/nginx-docker.conf`，避免依赖宿主机 Nginx 或 Linux `systemctl`。
 
 ## 🌐 Nginx 反向代理
 
